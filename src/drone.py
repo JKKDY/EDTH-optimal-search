@@ -33,19 +33,17 @@ class Drone:
                     f"camera_elevation={self.camera_elevation}, "
                     f"camera_azimuth={self.camera_azimuth})")
 
-    def move(self, dt, velocity=None):
+    def move(self, dt):
         """
         Move the drone forward by a distance equal to its velocity toward the next point.
         If the drone reaches a point, it continues to the subsequent point.
 
         parameters:
         - dt: duration of a single time step
-        - velocity: (optional) updated velocity of the drone
         """
 
         if self.current_path_idx == len(self.path) - 1: return
-        if velocity is not None: self.velocity = velocity 
-
+        
         # If already at the target, update the index.
         if (np.all(self.position == self.path[self.current_path_idx + 1])):
             self.current_path_idx += 1
