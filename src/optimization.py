@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.optimize as opt
+from skopt import gp_minimize
 
 import matplotlib.pyplot as plt
 
@@ -54,11 +55,10 @@ if __name__ == "__main__":
     
     bounds = np.vstack((bounds_min, bounds_max)).T
 
-    terrain = np.ones((50, 50, 8))
+    terrain = np.ones((100, 100, 8))
 
     def f(x):
         path, camera = unpack_x(x, offsets)
-        print(path[0])
         drone = Drone(path, 
                       camera_elevation=np.deg2rad(60), 
                       camera_azimuth=np.deg2rad(0), 
@@ -79,11 +79,14 @@ if __name__ == "__main__":
         #     plt.colorbar()
         #     plt.show()
         return score
-
+    x0 = assemble_x(path0, camera0)[0]
     res = opt.differential_evolution(f, bounds=bounds, 
-                                     x0=assemble_x(path0, camera0)[0], 
+                                     x0=x0, 
                                      workers=4, disp=True, maxiter=10)
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds)
+    # print([tuple(elm) for elm in bounds])
+    # res = gp_minimize(f, dimensions=[tuple(elm) for elm in bounds], x0=x0, n_calls=200, 
+    #                   n_initial_points=30, random_state=42, verbose=1, n_jobs=4)
     
     path, camera = unpack_x(res.x, offsets)
     drone = Drone(path,
