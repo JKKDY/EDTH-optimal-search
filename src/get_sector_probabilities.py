@@ -6,9 +6,7 @@ from scipy import ndimage
 
 
 
-file = "/img/Kursk_4.png"
 
-file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Kursk_4.png"
 COLORS = {
     'field': ['#edf0d4', '#cdebb0', '#87e0be', "#ecedd5", "#e6e8d0", "#f4f5dd", "#e3e6ce", "#cee5b1", "#f1eee8"],
     'trees': ['#add19d', '#c8d7aa', "#c8d3ad", "#b4d0a2", "#a0bb8e", "#a4c896", "#a0c491", "#bcdab1", "#c1dab5", "#c1d9b6"],
@@ -449,18 +447,20 @@ def visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_
     plt.show()
 
 
-# Read image
-img = read_image(file)
+if __name__ == "__main__":
 
-#plt.imshow(img)
-#plt.show()
+    for i in range(1, 5):
+    # Read image
+        img = read_image(f"img/Kursk_{i}.png")
 
-n = 50
-m = 50
+        n = 50
+        m = 50
 
-slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
-visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors)
+        slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
+        np.save(f"terrain/Kursk_{i}_50x50", direction_vectors)
 
-index = 0
-visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_vector, direction_vectors, index)
+    # visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors)
+
+    # index = 0
+# visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_vector, direction_vectors, index)
 

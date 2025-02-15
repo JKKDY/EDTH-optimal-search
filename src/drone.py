@@ -171,7 +171,10 @@ class Drone:
             detection_coverage[rrr, ccc, i] = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
 
         return detection_coverage
-       
+    
+    def detection_cone(self, terrain, pixel_size): 
+        pass
+
 
     def total_coverage(self, terrain, pixel_size):
         observation = np.zeros(terrain.shape)
