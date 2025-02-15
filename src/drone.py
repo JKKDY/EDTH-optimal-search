@@ -136,24 +136,54 @@ class Drone:
           detection_coverage: 2D numpy array of the same shape as terrain containing the detection probabilities.
         """
       
-        view_extent = self.view_coverage()
-        detection_coverage = np.zeros(terrain.shape, dtype=float)
+        detection_coverage = np.zeros(terrain.shape[:2], dtype=float)
 
         # Convert world coordinates to pixel indices.
+        view_extent = self.view_coverage()
         poly_cols = view_extent[:, 0] / pixel_size  # x -> column
         poly_rows = view_extent[:, 1] / pixel_size  # y -> row
 
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
-        rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape)
+        rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape[:2])
+
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
-        distances = np.linalg.norm(xyzcoordinates - self.position, axis=1)
-        detection_coverage[rr, cc] = np.clip(1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance), 0, 1)
+
+        diffs = self.position - xyzcoordinates
+        distances = np.linalg.norm(diffs, axis=1, keepdims=True)
+        normalized_diffs = diffs/distances 
+
+        def detection_confidence(distances, terrain):
+            print(terrain.shape)
+            P = 1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance)
+            print(np.clip(P, 0, 1))
+            P = P.flatten() * terrain
+            return np.clip(P, 0, 1)
+
+        height_thresh = 0.7
+        is_upper_quadrant = normalized_diffs[:, 0] > 0
+        is_right_quadrant = normalized_diffs[:, 1] > 0
+        is_top_quadrant = normalized_diffs[:, 2] > height_thresh
+
+        masks = [
+            is_upper_quadrant  & is_right_quadrant  & ~is_top_quadrant,
+            is_upper_quadrant  & ~is_right_quadrant & ~is_top_quadrant,
+            ~is_upper_quadrant & ~is_right_quadrant & ~is_top_quadrant,
+            ~is_upper_quadrant & is_right_quadrant  & ~is_top_quadrant,
+            is_upper_quadrant  & is_right_quadrant  & is_top_quadrant ,
+            is_upper_quadrant  & ~is_right_quadrant & is_top_quadrant ,
+            ~is_upper_quadrant & ~is_right_quadrant & is_top_quadrant ,
+            ~is_upper_quadrant & is_right_quadrant  & is_top_quadrant ,
+        ]
+
+        for i in range(terrain.shape[2]):
+            rrr = rr[masks[i]]
+            ccc = cc[masks[i]]
+
+            conf = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
+            print(i, np.sum(conf))
+            detection_coverage[rrr, ccc] = conf
 
         return detection_coverage
-
-
-
-
        
 
 
@@ -220,25 +250,17 @@ if __name__ == "__main__":
     # for _ in range(100):
     #     drone.move(dt)
 
-    corners = drone.view_coverage()
-    # print(corners)
-    # print(drone.position)
-
-
-    map_shape = (500, 500)
+    map_shape = (500, 500, 8)
     pixel_size = 0.02
-    environment =  np.zeros((500, 500) , dtype=float)
+    environment = np.ones(map_shape , dtype=float)
+    environment[:, :, 6] *= 2
     detection_coverage = drone.detection_coverage(environment, pixel_size, 4, 10)
-    # plt.imshow(camera_coverage, origin='lower')
 
     arrow_scale = 0.2  # Adjust arrow length as needed
     plt.figure(figsize=(8, 8))
 
-    x, y = corners[:, 0], corners[:, 1]
-    plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
-
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    plt.imshow(detection_coverage, origin='lower',
+    plt.imshow(detection_coverage[:, :], origin='lower',
                extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
                cmap='viridis')
     plt.colorbar(label='Detection Probability')
