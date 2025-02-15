@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-
+from matplotlib.patches import Polygon
 class Drone:
     def __init__(self, path, velocity=1.0, camera_elevation=0.0, camera_azimuth=0.0, camera_fov=np.deg2rad(90)):
         """
@@ -56,13 +56,13 @@ class Drone:
             self.position = next_point + self.distance_to_target * (-self.direction)
 
 
-    def adjust_camera(self, elevation, azimuth, fov):
+    def adjust_camera(self, elevation=None, azimuth=None, fov=None):
         """
         Adjust the camera's elevation and azimuth angles.
         """
-        self.camera_elevation = elevation
-        self.camera_azimuth = azimuth
-        self.camera_fov = fov
+        if elevation is not None: self.camera_elevation = elevation
+        if azimuth is not None: self.camera_azimuth = azimuth
+        if fov is not None: self.camera_fov = fov
 
 
     def look_at(self): 
@@ -71,7 +71,7 @@ class Drone:
         """
         # Convert FOV from degrees to radians and compute half-angle.
         fov_vertical = self.camera_fov
-        fov_horizontal = self.camera_fov
+        fov_horizontal = self.camera_fov 
 
         tan_half_horizontal = np.tan(fov_horizontal / 2)
         tan_half_vertical = np.tan(fov_vertical / 2)
@@ -84,7 +84,6 @@ class Drone:
             [ tan_half_horizontal, 1,  tan_half_vertical],  # top-right
             [-tan_half_horizontal, 1,  tan_half_vertical]   # top-left
         ])
-        print(camera_corners)
 
         # Rotate the camera in camera space 
         R_z = np.array([
@@ -92,16 +91,13 @@ class Drone:
             [np.sin(self.camera_azimuth),  np.cos(self.camera_azimuth), 0],
             [0, 0, 1]
         ])
-   
         R_x = np.array([
             [1, 0, 0],
             [0, np.cos(-self.camera_elevation), -np.sin(-self.camera_elevation)],
             [0, np.sin(-self.camera_elevation),  np.cos(-self.camera_elevation)]
         ])
-
         cam_rotation = R_z @ R_x # first pitch then yaw
-        camera_corners = (cam_rotation @ camera_corners.T)  # shape (4,3) 
-        print(camera_corners.T)
+        camera_corners = (cam_rotation @ camera_corners.T)  
 
         # rotate the camera in world space
         angle_cos = -0 if self.direction[1] == 0 else np.cos(-np.arctan(self.direction[0]/self.direction[1]))
@@ -112,18 +108,12 @@ class Drone:
             [0, 0, 1]
         ])
         camera_rays = (world_rotation @ camera_corners).T
-
-        print(camera_rays)
-
-        x = - self.position[2] / camera_rays[:, 2]
-        print(x)
-
         
+        # calcualte ray intersection with ground
+        x = - self.position[2] / camera_rays[:, 2]
         camera_world_corners = camera_rays * x[:, np.newaxis] + self.position
         return camera_world_corners
        
-
-
 
     def __str__(self):
         return (f"Drone(position={self.position}, "
@@ -141,6 +131,10 @@ def plot_drone(drone, dt):
     
     # Create a marker for the drone.
     drone_marker, = ax.plot([], [], 'ro', markersize=8, label="Drone")
+
+    # Create a polygon patch for the camera view corners.
+    polygon_patch = Polygon(np.zeros((4, 2)), closed=True, color='cyan', ec='b', alpha=0.5)
+    ax.add_patch(polygon_patch)
     
     # Set the limits of the plot.
     ax.set_xlim(np.min(path[:, 0]) - 5, np.max(path[:, 0]) + 5)
@@ -150,17 +144,22 @@ def plot_drone(drone, dt):
     ax.set_title("Bird's-Eye View of Drone Flight")
     ax.legend()
 
+    ax.set_aspect('equal', adjustable='box')
+
     # Set the time step (seconds) for the simulation.
     def update(frame):
         if drone.current_path_idx >= len(drone.path) - 1:
             return drone_marker,
         drone.move(dt)
+        drone.adjust_camera(azimuth=0.6*np.sin(frame*0.1))
+        corners = drone.look_at()[:, :2]
         drone_marker.set_data([drone.position[0]], [drone.position[1]])
-        return drone_marker,
+        polygon_patch.set_xy(corners)
+        return drone_marker,polygon_patch
 
     # Create the animation.
     ani = FuncAnimation(fig, update, frames=300, interval=dt*500, blit=True)
-    
+    ani.save('drone_animation.gif', fps=30)
     plt.show()
 
 
@@ -178,40 +177,40 @@ if __name__ == "__main__":
     dt = 0.02
     drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(90))
 
-    # plot_drone(drone)
+    plot_drone(drone, dt)
 
-    for _ in range(100):
-        drone.move(dt)
+    # for _ in range(100):
+    #     drone.move(dt)
 
-    corners = drone.look_at()
-    print(corners)
-    print(drone.position)
-
-
-    # map_shape = (500, 500)
-    # environment =  np.zeros((500, 500) , dtype=float)
+    # corners = drone.look_at()
+    # print(corners)
+    # print(drone.position)
 
 
-    # coverage = drone.look_at(environment)
-    arrow_scale = 0.2  # Adjust arrow length as needed
-    pixel_size = 0.02
-    plt.figure(figsize=(8, 8))
+    # # map_shape = (500, 500)
+    # # environment =  np.zeros((500, 500) , dtype=float)
 
-    x, y = corners[:, 0], corners[:, 1]
-    plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
 
-    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    # plt.imshow(coverage, origin='lower',
-    #            extent=[-1, map_shape[1]*pixel_size+1, -1, map_shape[0]*pixel_size+1],
-    #            cmap='viridis')
-    # plt.colorbar(label='Detection Probability')
-    plt.arrow(drone.position[0], drone.position[1],
-            drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
-            head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
-    plt.title('Drone Camera Coverage Map')
-    plt.xlabel('World X')
-    plt.ylabel('World Y')
-    plt.axis('equal')
-    plt.show()
+    # # coverage = drone.look_at(environment)
+    # arrow_scale = 0.2  # Adjust arrow length as needed
+    # pixel_size = 0.02
+    # plt.figure(figsize=(8, 8))
+
+    # x, y = corners[:, 0], corners[:, 1]
+    # plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
+
+    # plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    # # plt.imshow(coverage, origin='lower',
+    # #            extent=[-1, map_shape[1]*pixel_size+1, -1, map_shape[0]*pixel_size+1],
+    # #            cmap='viridis')
+    # # plt.colorbar(label='Detection Probability')
+    # plt.arrow(drone.position[0], drone.position[1],
+    #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+    #         head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
+    # plt.title('Drone Camera Coverage Map')
+    # plt.xlabel('World X')
+    # plt.ylabel('World Y')
+    # plt.axis('equal')
+    # plt.show()
 
    
