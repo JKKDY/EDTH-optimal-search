@@ -63,7 +63,6 @@ if __name__ == "__main__":
         discovered_percentage = scoring.discovery_score(discovery)
         distance_penalty = scoring.total_path_length(path)-max_distance
         score = (1.0 - discovered_percentage) + distance_penalty**2
-        # score = np.linalg.norm(score)
         print("score", discovered_percentage, distance_penalty)
         # plt.imshow(discovery, extent=(0,pixel_size*discovery.shape[0], 0, pixel_size*discovery.shape[1]), origin='lower')
         # plt.plot(drone.positions[:,0], drone.positions[:,1])
@@ -71,8 +70,6 @@ if __name__ == "__main__":
         # plt.show()
         return score
 
-    print("bounds", bounds)
-    print("x0", assemble_x(path0, camera0)[0])
     res = opt.differential_evolution(f, bounds=bounds, 
                                      x0=assemble_x(path0, camera0)[0], 
                                     #  args=(offsets), 
