@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .screenshot-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .controls {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .slider-container label {
+            font-weight: bold;
+            min-width: 70px;
+        }
+
+        input[type="range"] {
+            width: 200px;
+        }
+
+        .value-display {
+            min-width: 30px;
+            text-align: center;
+            background: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .screenshot-display {
+            margin-top: 70px;
+            width: 100%;
+            height: calc(100% - 70px);
+        }
+
+        #selectedScreenshot {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="screenshot-container">
+        <div class="controls">
+            <input type="file" id="screenshotInput" accept="image/*">
+            <div class="slider-container">
+                <label>Rows:</label>
+                <input type="range" id="rowSlider" min="2" max="15" value="7">
+                <span id="rowValue" class="value-display">7</span>
+            </div>
+            <div class="slider-container">
+                <label>Columns:</label>
+                <input type="range" id="colSlider" min="2" max="15" value="7">
+                <span id="colValue" class="value-display">7</span>
+            </div>
+        </div>
+        <div class="screenshot-display">
+            <img id="selectedScreenshot">
+        </div>
+    </div>
+
+    <script>
+        // Previous JavaScript code remains the same
+    </script>
+</body>
+</html>
