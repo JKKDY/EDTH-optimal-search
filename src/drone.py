@@ -229,6 +229,8 @@ def plot_drone(drone, terrain, pixel_size, dt):
         
         # Recalculate detection coverage.
         coverage = drone.detection_coverage(terrain, pixel_size, certain_detection_distance=4, max_detection_distance=10)
+        detection_coverage = np.sum(detection_coverage, axis=2)
+
         im.set_data(coverage)
         
         # Update the drone marker position:
@@ -259,11 +261,11 @@ if __name__ == "__main__":
     segment_lengths = np.linalg.norm(diffs, axis=1)
     length = np.sum(segment_lengths) 
 
-    drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(0))
+    drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(60), camera_azimuth=np.deg2rad(0))
 
-    map_shape = (1000, 1000, 8)
-    pixel_size = 10
-    terrain = np.ones(map_shape )
+    map_shape = (500, 500, 8)
+    pixel_size = 20
+    terrain = 0.01 * np.ones(map_shape)
     # terrain[:, :, 4:] *= 0.9
     # terrain[:, :, :4] *= 0.5
     # plot_drone(drone, terrain, pixel_size, dt)
@@ -271,7 +273,8 @@ if __name__ == "__main__":
 
     arrow_scale = 0.1
     detection_coverage = drone.total_coverage(terrain, pixel_size)
-    detection_coverage = np.sum(detection_coverage, axis=2)
+    # detection_coverage = np.sum(detection_coverage, axis=2)
+    detection_coverage = np.clip(detection_coverage[:, :, 2], 0, 1)
     plt.figure(figsize=(8, 8))
 
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
