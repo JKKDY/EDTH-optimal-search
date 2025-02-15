@@ -153,9 +153,7 @@ class Drone:
         normalized_diffs = diffs/distances 
 
         def detection_confidence(distances, terrain):
-            print(terrain.shape)
             P = 1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance)
-            print(np.clip(P, 0, 1))
             P = P.flatten() * terrain
             return np.clip(P, 0, 1)
 
@@ -178,10 +176,7 @@ class Drone:
         for i in range(terrain.shape[2]):
             rrr = rr[masks[i]]
             ccc = cc[masks[i]]
-
-            conf = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
-            print(i, np.sum(conf))
-            detection_coverage[rrr, ccc] = conf
+            detection_coverage[rrr, ccc] = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
 
         return detection_coverage
        
@@ -189,45 +184,71 @@ class Drone:
 
 
 
-def plot_drone(drone, dt):
-    # Set up the 2D plot (bird's-eye view) showing only x and y.
-    fig, ax = plt.subplots(figsize=(6, 6))
-    
-    # Plot the full path (x and y only).
-    ax.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    
-    # Create a marker for the drone.
+
+def plot_drone(drone, terrain, pixel_size, dt):
+    """
+    Create an animation of the drone's flight with updated detection coverage.
+
+    Parameters:
+      drone      : an instance of Drone.
+      terrain    : 3D numpy array representing the terrain (shape: [rows, cols, channels]).
+      pixel_size : scalar, size of a pixel in world units.
+      dt         : time step duration for each frame.
+    """
+    # Set up the figure and axis.
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # Plot the entire path (assuming drone.path is a list or array of [x,y,z] points).
+    path_arr = np.array(drone.path)
+
+    # Compute and show the initial detection coverage.
+    initial_coverage = drone.detection_coverage(terrain, pixel_size, certain_detection_distance=4, max_detection_distance=10)
+    # Set the extent using terrain dimensions and pixel_size.
+    extent = [0, terrain.shape[1]*pixel_size, 0, terrain.shape[0]*pixel_size]
+    im = ax.imshow(initial_coverage, origin='lower', extent=extent, cmap='viridis')
+    cbar = fig.colorbar(im, ax=ax, label='Detection Probability')
+
+    # Create a marker for the drone (initially empty, but we'll update its position).
     drone_marker, = ax.plot([], [], 'ro', markersize=8, label="Drone")
-
-    # Create a polygon patch for the camera view corners.
-    polygon_patch = Polygon(np.zeros((4, 2)), closed=True, color='cyan', ec='b', alpha=0.5)
-    ax.add_patch(polygon_patch)
     
-    # Set the limits of the plot.
-    ax.set_xlim(np.min(path[:, 0]) - 5, np.max(path[:, 0]) + 5)
-    ax.set_ylim(np.min(path[:, 1]) - 5, np.max(path[:, 1]) + 5)
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_title("Bird's-Eye View of Drone Flight")
-    ax.legend()
+    # Create an arrow (using quiver) to show the drone's direction.
+    arrow_scale = 0.2  # adjust as needed
+    quiver = ax.quiver(drone.position[0], drone.position[1],
+                       drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+                       angles='xy', scale_units='xy', scale=1, color='k')
 
+    # Set axis labels and title.
+    ax.set_xlabel('World X')
+    ax.set_ylabel('World Y')
+    ax.set_title('Drone Camera Coverage Map')
+    ax.legend()
+    ax.plot(path_arr[:, 0], path_arr[:, 1], 'k--', label="Path")
     ax.set_aspect('equal', adjustable='box')
 
-    # Set the time step (seconds) for the simulation.
     def update(frame):
-        if drone.current_path_idx >= len(drone.path) - 1:
-            return drone_marker,
+        # Move the drone and update camera orientation (e.g., oscillate azimuth).
         drone.move(dt)
         drone.adjust_camera(azimuth=0.6*np.sin(frame*0.1))
-        corners = drone.view_coverage()
+        
+        # Recalculate detection coverage.
+        coverage = drone.detection_coverage(terrain, pixel_size, certain_detection_distance=4, max_detection_distance=10)
+        im.set_data(coverage)
+        
+        # Update the drone marker position:
+        # Provide the position as sequences/lists.
         drone_marker.set_data([drone.position[0]], [drone.position[1]])
-        polygon_patch.set_xy(corners)
-        return drone_marker,polygon_patch
+        
+        # Update the quiver arrow:
+        quiver.set_offsets([drone.position[0], drone.position[1]])
+        quiver.set_UVC(drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale)
+        
+        return im, drone_marker, quiver
 
-    # Create the animation.
+    # Create and show the animation.
     ani = FuncAnimation(fig, update, frames=300, interval=dt*500, blit=True)
-    # ani.save('drone_animation.gif', fps=30)
     plt.show()
+
+
 
 
 
@@ -244,33 +265,33 @@ if __name__ == "__main__":
     dt = 0.02
     drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(0))
 
-    # plot_drone(drone, dt)
-
-
-    # for _ in range(100):
-    #     drone.move(dt)
-
     map_shape = (500, 500, 8)
-    pixel_size = 0.02
-    environment = np.ones(map_shape , dtype=float)
-    environment[:, :, 6] *= 2
-    detection_coverage = drone.detection_coverage(environment, pixel_size, 4, 10)
+    pixel_size = 0.025
+    terrain = np.ones(map_shape , dtype=float)
+    terrain[:, :, 4:] *= 0.9
+    terrain[:, :, :4] *= 0.5
+    plot_drone(drone, terrain, pixel_size, dt)
 
-    arrow_scale = 0.2  # Adjust arrow length as needed
-    plt.figure(figsize=(8, 8))
 
-    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    plt.imshow(detection_coverage[:, :], origin='lower',
-               extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-               cmap='viridis')
-    plt.colorbar(label='Detection Probability')
-    plt.arrow(drone.position[0], drone.position[1],
-            drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
-            head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
-    plt.title('Drone Camera Coverage Map')
-    plt.xlabel('World X')
-    plt.ylabel('World Y')
-    plt.axis('equal')
-    plt.show()
+    # for _ in range(300):
+    #     drone.move(dt)
+    #     detection_coverage = drone.detection_coverage(terrain, pixel_size, 4, 10)
+
+    #     arrow_scale = 0.2  # Adjust arrow length as needed
+    #     plt.figure(figsize=(8, 8))
+
+    #     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    #     plt.imshow(detection_coverage[:, :], origin='lower',
+    #             extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+    #             cmap='viridis')
+    #     plt.colorbar(label='Detection Probability')
+    #     plt.arrow(drone.position[0], drone.position[1],
+    #             drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+    #             head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
+    #     plt.title('Drone Camera Coverage Map')
+    #     plt.xlabel('World X')
+    #     plt.ylabel('World Y')
+    #     plt.axis('equal')
+    #     plt.show()
 
    
