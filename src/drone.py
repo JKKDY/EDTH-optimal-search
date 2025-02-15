@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Polygon
+from skimage.draw import polygon
+
 class Drone:
     def __init__(self, path, velocity=1.0, camera_elevation=0.0, camera_azimuth=0.0, camera_fov=np.deg2rad(90)):
         """
@@ -26,6 +28,10 @@ class Drone:
         self.distance_to_target = np.linalg.norm(self.direction)
         self.direction /= self.distance_to_target
 
+        def __str__(self):
+            return (f"Drone(position={self.position}, "
+                    f"camera_elevation={self.camera_elevation}, "
+                    f"camera_azimuth={self.camera_azimuth})")
 
     def move(self, dt, velocity=None):
         """
@@ -65,10 +71,11 @@ class Drone:
         if fov is not None: self.camera_fov = fov
 
 
-    def look_at(self): 
+    def view_coverage(self): 
         """
-        calculate the corners of the camera view
+        calculate current view coverage of the camera
         """
+
         # Convert FOV from degrees to radians and compute half-angle.
         fov_vertical = self.camera_fov
         fov_horizontal = self.camera_fov 
@@ -100,8 +107,9 @@ class Drone:
         camera_corners = (cam_rotation @ camera_corners.T)  
 
         # rotate the camera in world space
-        angle_cos = -0 if self.direction[1] == 0 else np.cos(-np.arctan(self.direction[0]/self.direction[1]))
-        angle_sin = -1 if self.direction[1] == 0 else np.sin(-np.arctan(self.direction[0]/self.direction[1]))
+        theta = -np.arctan2(self.direction[0], self.direction[1])
+        angle_cos = np.cos(theta)
+        angle_sin = np.sin(theta)
         world_rotation = np.array([
             [angle_cos, -angle_sin, 0],
             [angle_sin,  angle_cos, 0], 
@@ -112,13 +120,36 @@ class Drone:
         # calcualte ray intersection with ground
         x = - self.position[2] / camera_rays[:, 2]
         camera_world_corners = camera_rays * x[:, np.newaxis] + self.position
-        return camera_world_corners
+        return camera_world_corners[:, :2]
+    
+
+    def detection_coverage(self, enviornment_map, pixel_size):
+        view_extent = self.view_coverage()
+        detection_coverage = np.zeros(enviornment_map.shape, dtype=float)
+        print(view_extent)
+
+        # Convert world coordinates to pixel indices.
+        poly_cols = view_extent[:, 0] / pixel_size  # x -> column
+        poly_rows = view_extent[:, 1] / pixel_size  # y -> row
+
+        # print(poly_cols)
+        # print(poly_rows)
+
+        # # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
+        # rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape)
+        
+        # # For each pixel in the polygon, compute its world coordinate (center of the pixel).
+        # xs = cc * pixel_size + pixel_size / 2.0
+        # ys = rr * pixel_size + pixel_size / 2.0
+
+
+        return detection_coverage
+
+
+
+
        
 
-    def __str__(self):
-        return (f"Drone(position={self.position}, "
-                f"camera_elevation={self.camera_elevation}, "
-                f"camera_azimuth={self.camera_azimuth})")
 
 
 
@@ -152,14 +183,14 @@ def plot_drone(drone, dt):
             return drone_marker,
         drone.move(dt)
         drone.adjust_camera(azimuth=0.6*np.sin(frame*0.1))
-        corners = drone.look_at()[:, :2]
+        corners = drone.view_coverage()
         drone_marker.set_data([drone.position[0]], [drone.position[1]])
         polygon_patch.set_xy(corners)
         return drone_marker,polygon_patch
 
     # Create the animation.
     ani = FuncAnimation(fig, update, frames=300, interval=dt*500, blit=True)
-    ani.save('drone_animation.gif', fps=30)
+    # ani.save('drone_animation.gif', fps=30)
     plt.show()
 
 
@@ -177,21 +208,23 @@ if __name__ == "__main__":
     dt = 0.02
     drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(90))
 
-    plot_drone(drone, dt)
+    # plot_drone(drone, dt)
+
 
     # for _ in range(100):
     #     drone.move(dt)
 
-    # corners = drone.look_at()
+    # corners = drone.view_coverage()
     # print(corners)
     # print(drone.position)
 
 
-    # # map_shape = (500, 500)
-    # # environment =  np.zeros((500, 500) , dtype=float)
+    map_shape = (500, 500)
+    environment =  np.zeros((500, 500) , dtype=float)
+    drone.detection_coverage(environment, 0.1)
 
 
-    # # coverage = drone.look_at(environment)
+    # # coverage = drone.view_coverage(environment)
     # arrow_scale = 0.2  # Adjust arrow length as needed
     # pixel_size = 0.02
     # plt.figure(figsize=(8, 8))
