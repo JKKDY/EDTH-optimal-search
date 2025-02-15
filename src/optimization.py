@@ -17,12 +17,13 @@ num_timesteps = 40
 pixel_size = 0.1
 num_waypoints = 8
 
-limits = np.array([[0,0,3], [0, 10,3], [5,10,3], [10,0,3]], dtype=float)  
+limits = np.array([[0,0,3], [0, 10,3], [5,10,3], [10,0,3]])  
 
 def total_discovery(drone: Drone): 
-  observation = np.zeros((50, 50)) 
+  terrain = np.zeros((50, 50, 8)) 
+  observation = np.zeros(terrain.shape[:2])
   for step in range(num_timesteps):
-    observation = np.max([observation, drone.detection_coverage(step, observation, pixel_size, 4, 10)], axis=0)
+    observation = np.max([observation, drone.detection_coverage(step, terrain, pixel_size, 4, 10)], axis=0)
   # plt.imshow(observation, extent=(0,pixel_size*observation.shape[0], 0, pixel_size*observation.shape[1]), origin='lower')
   # plt.plot(drone.positions[:,0], drone.positions[:,1])
   # plt.show()
