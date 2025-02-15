@@ -19,7 +19,7 @@ def simulate_camera_view(map_shape, pixel_size, drone_pos, angle, view_width, vi
         coverage: 2D NumPy array (of shape map_shape) with values in [0, 1] representing detection probability.
     """
     # Initialize the coverage map (all zeros)
-    coverage = np.zeros(map_shape, dtype=float)
+    coverage = np.zeros(map_shape)
     
     # Define the camera view rectangle in the camera coordinate system.
     # Here, we assume the drone is at the bottom-center of the view.
