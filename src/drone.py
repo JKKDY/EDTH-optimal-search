@@ -24,10 +24,10 @@ class Drone:
         self.camera_azimuth = camera_azimuth
         self.camera_fov = camera_fov 
         
-        self.current_path_idx = 0
+        self.num_timesteps = num_timesteps
         distances = np.cumsum(np.concat([[0.0], np.linalg.norm(np.diff(path, axis=0), axis=1)]))
         
-        interp_points = np.linspace(0.0, distances[-1], num_timesteps)
+        interp_points = np.linspace(0.0, distances[-1], self.num_timesteps)
         x_interp = np.interp(interp_points, distances, path[:,0])
         y_interp = np.interp(interp_points, distances, path[:,1])
         z_interp = np.interp(interp_points, distances, path[:,2])
@@ -35,18 +35,14 @@ class Drone:
         self.positions = np.array([x_interp, y_interp, z_interp]).T
         dirs = np.diff(self.positions, axis=0) 
         self.directions = np.concat([[dirs[0]], dirs], axis=0)
-        # x_interp = np.interp(interp_points, distances, dirs[:,0])
-        # y_interp = np.interp(interp_points, distances, dirs[:,1])
-        # z_interp = np.interp(interp_points, distances, dirs[:,2])
-        # self.directions = np.array([x_interp, y_interp, z_interp]).T
-        # print(self.positions)
-        # print(self.directions)
-        self.distances = distances
 
         def __str__(self):
             return (f"Drone(position={self.positions}, "
                     f"camera_elevation={self.camera_elevation}, "
                     f"camera_azimuth={self.camera_azimuth})")
+        
+    def position(self, step):
+        return self.positions[step]
 
 
     def adjust_camera(self, elevation=None, azimuth=None, fov=None):
@@ -131,7 +127,7 @@ class Drone:
         """
         assert terrain.shape[2] == 8
 
-        detection_coverage = np.zeros(terrain.shape[:2])
+        detection_coverage = np.zeros(terrain.shape)
         view_extent = self.view_coverage(timestep_idx)
         
         # Convert world coordinates to pixel indices.
@@ -172,12 +168,17 @@ class Drone:
         for i in range(terrain.shape[2]):
             rrr = rr[masks[i]]
             ccc = cc[masks[i]]
-            detection_coverage[rrr, ccc] = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
+            detection_coverage[rrr, ccc, i] = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
 
         return detection_coverage
        
 
-
+    def total_coverage(self, terrain, pixel_size):
+        observation = np.zeros(terrain.shape)
+        for step in range(self.num_timesteps):
+            # detectable object size at max zoom range = sin(1.5deg (fov at max zoom) ) * 8km / 1080px * 20px (minimal detection size)
+            observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size, 1500, 8000))
+        return observation
 
 
 
@@ -252,42 +253,39 @@ def plot_drone(drone, terrain, pixel_size, dt):
 if __name__ == "__main__":
     # Define a simple 2D path.
     # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
-    path = np.array([[0,0,3], [5, 5,3], [5,7,3], [10,10,3]])
+    path = np.array([[0,0,3000], [5000, 5000,3000], [5000,7000,3000], [10000,10000,3000]])
     
     diffs = np.diff(path, axis=0)
     segment_lengths = np.linalg.norm(diffs, axis=1)
     length = np.sum(segment_lengths) 
 
-    dt = 0.02
-    drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(0))
+    drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(0))
 
-    map_shape = (500, 500, 8)
-    pixel_size = 0.025
+    map_shape = (1000, 1000, 8)
+    pixel_size = 10
     terrain = np.ones(map_shape )
-    terrain[:, :, 4:] *= 0.9
-    terrain[:, :, :4] *= 0.5
-    plot_drone(drone, terrain, pixel_size, dt)
+    # terrain[:, :, 4:] *= 0.9
+    # terrain[:, :, :4] *= 0.5
+    # plot_drone(drone, terrain, pixel_size, dt)
 
 
-    # for _ in range(300):
-    #     drone.move(dt)
-    #     detection_coverage = drone.detection_coverage(terrain, pixel_size, 4, 10)
+    arrow_scale = 0.1
+    detection_coverage = drone.total_coverage(terrain, pixel_size)
+    detection_coverage = np.sum(detection_coverage, axis=2)
+    plt.figure(figsize=(8, 8))
 
-    #     arrow_scale = 0.2  # Adjust arrow length as needed
-    #     plt.figure(figsize=(8, 8))
-
-    #     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    #     plt.imshow(detection_coverage[:, :], origin='lower',
-    #             extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-    #             cmap='viridis')
-    #     plt.colorbar(label='Detection Probability')
-    #     plt.arrow(drone.position[0], drone.position[1],
-    #             drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
-    #             head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
-    #     plt.title('Drone Camera Coverage Map')
-    #     plt.xlabel('World X')
-    #     plt.ylabel('World Y')
-    #     plt.axis('equal')
-    #     plt.show()
+    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    plt.imshow(detection_coverage, origin='lower',
+            extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+            cmap='viridis')
+    plt.colorbar(label='Detection Probability')
+    # plt.arrow(drone.position[0], drone.position[1],
+    #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+    #         head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
+    plt.title('Drone Camera Coverage Map')
+    plt.xlabel('World X')
+    plt.ylabel('World Y')
+    plt.axis('equal')
+    plt.show()
 
    
