@@ -4,24 +4,19 @@ import numpy as np
 from skimage import feature
 from scipy import ndimage
 
-file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 13.56.05.png"
-file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 13.57.08.png"
-file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 14.22.17.png"
-file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 14.28.33.png"
-#file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 16.06.26.png"
 
-#file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 16.06.26.png"
-# Color dictionary
+
+file = "/Users/riarosenauer/Library/Mobile Documents/com~apple~CloudDocs/Ria/Bilder/Bildschirmfotos/Bildschirmfoto 2025-02-15 um 14.28.33.png"
 COLORS = {
     'field': ['#edf0d4', '#cdebb0', '#87e0be', "#ecedd5", "#e6e8d0", "#f4f5dd", "#e3e6ce", "#cee5b1", "#f1eee8"],
-    'trees': ['#add19d', '#c8d7aa', "#c8d3ad", "#b4d0a2", "#a0bb8e", "#a4c896", "#a0c491"],
+    'trees': ['#add19d', '#c8d7aa', "#c8d3ad", "#b4d0a2", "#a0bb8e", "#a4c896", "#a0c491", "#bcdab1", "#c1dab5", "#c1d9b6"],
     'street': ['#ffffff', '#f6fabf', '#a6822b', "#717171", "#dddde8", "#f6fabf", "#ac8332", "#f9fac7"],
     'other': ['#aedfa2', '#87e0be', '#f2dad9', "#ead6b8"],
-    'building': ['#e0dfdf', '#f5dcba', "#d9d0c9", "#c3b5ab"],
+    'building': ['#e0dfdf', '#f5dcba', "#d9d0c9", "#c3b5ab", "#d9d9d9", "#dfdfdf", "#f2eee8", "#d5cdc7", "#fdfde5"],
     'water': ['#abd3de', '#cdebb0']
 }
 
-tolerance = 5
+tolerance = 15
 
 def read_image(file):
     return Image.open(file)
@@ -29,7 +24,7 @@ def read_image(file):
 def check_color_present(slice_img, colors, tolerance=tolerance):
     return any(check_single_color(slice_img, color, tolerance) for color in colors)
 
-def check_single_color(slice_img, target_color, tolerance=5):
+def check_single_color(slice_img, target_color, tolerance=15):
     np_slice = np.array(slice_img)
     # Convert hex to RGB
     r = int(target_color[1:3], 16)
@@ -50,7 +45,7 @@ def calculate_normals(edge_points, np_slice, tree_colors, tolerance=10):
     normals = np.full((len(edge_points), 2), np.nan)  # Using NaN for undefined normals
     offset = 5  # Using 5 indices ahead for tangent calculation
 
-    def is_tree_color(pixel, tol=tolerance - 5):
+    def is_tree_color(pixel, tol=tolerance+5):
         # Assume tree_colors are strings like "#AABBCC"
         for tree_color in tree_colors:
             r = int(tree_color[1:3], 16)
@@ -154,45 +149,38 @@ def get_tree_edges(slice_img, tolerance=tolerance+5):
     
     return edge_points, normals
 
-def get_building_edges(slice_img, tolerance=tolerance + 5):
+def get_building_edges(slice_img, tolerance=tolerance):
     np_slice = np.array(slice_img)
-    
-    # Create masks
-    building_mask = np.zeros(np_slice.shape[:2], dtype=bool)
-    street_mask = np.zeros(np_slice.shape[:2], dtype=bool)
-    
-    # Get building pixels (just the specific color we want)
-    building_color = '#d7d0c9'
-    r = int(building_color[1:3], 16)
-    g = int(building_color[3:5], 16)
-    b = int(building_color[5:7], 16)
-    
-    building_mask = (
-        (np.abs(np_slice[:,:,0] - r) < tolerance) &
-        (np.abs(np_slice[:,:,1] - g) < tolerance) &
-        (np.abs(np_slice[:,:,2] - b) < tolerance)
-    )
-    
-    # Get street pixels (just the specific color we want)
-    street_color = '#dddde6'
-    r = int(street_color[1:3], 16)
-    g = int(street_color[3:5], 16)
-    b = int(street_color[5:7], 16)
-    
-    street_mask = (
-        (np.abs(np_slice[:,:,0] - r) < tolerance) &
-        (np.abs(np_slice[:,:,1] - g) < tolerance) &
-        (np.abs(np_slice[:,:,2] - b) < tolerance)
-    )
-    
-    
-    # Simple edge detection
-    edges = feature.canny(building_mask.astype(float), sigma=3, low_threshold=0.9, high_threshold=1)
+    combined_mask = np.zeros(np_slice.shape[:2], dtype=bool)
+
+    # Combine masks for all tree colors
+    for building_color in COLORS['building']:
+        r = int(building_color[1:3], 16)
+        g = int(building_color[3:5], 16)
+        b = int(building_color[5:7], 16)
+        
+        building_mask = (
+            (np.abs(np_slice[:,:,0] - r) < tolerance) &
+            (np.abs(np_slice[:,:,1] - g) < tolerance) &
+            (np.abs(np_slice[:,:,2] - b) < tolerance)
+        )
+        combined_mask = combined_mask | building_mask
+
+    # Use Canny edge detection with higher threshold
+    edges = feature.canny(combined_mask.astype(float), 
+                         sigma=4,
+                         low_threshold=0.3,
+                         high_threshold=0.6)
     
     edge_coords = np.where(edges)
+
     if len(edge_coords[0]) > 0:
-        return np.column_stack((edge_coords[1], edge_coords[0]))
-    return np.array([])
+        edge_points = np.column_stack((edge_coords[1], edge_coords[0]))
+        # Now we only get back the high-confidence points and their normals
+        normals = calculate_normals(edge_points, np_slice, COLORS['building'], tolerance=tolerance)
+        return edge_points, normals
+    else:
+        return np.array([]), np.array([])
 
 
 def generate_direction_vector(contains, tree_normals, building_normals):
@@ -241,6 +229,41 @@ def generate_direction_vector(contains, tree_normals, building_normals):
                         return arr 
             else:
                 return np.array([0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
+        if contains[4]:
+            #check tree normal validity
+            #extract only the vectors that are not nan
+            if building_normals.shape[0] > 0:
+                valid_normals = building_normals[~np.isnan(building_normals).any(axis=1)]
+                average_normal = np.array([np.mean(valid_normals[:,0]), np.mean(valid_normals[:,1])])
+                arr = np.array([0.5, 0.1, 0.5, 0.9, 0.5, 0.3, 0.5, 0.9])
+                if average_normal[0] > 0:
+                    if average_normal[1] > 0:
+                        #showing from middle to sector 1
+                        arr[[0, 1]] = arr[[1, 0]]
+                        arr[[2, 3]] = arr [[3, 2]]
+                        arr[[4, 5]] = arr [[5,4]]
+                        arr[[6, 7]] = arr [[7, 6]]
+                        return arr #change index 2 to 4 and 6 and 8
+                    else:
+                        #showing from middle to sector 4
+                        arr[[1, 3]] = arr[[3, 1]]
+                        arr[[0, 2]] = arr [[2, 0]]
+                        arr[[5, 7]] = arr [[7,5]]
+                        arr[[4, 6]] = arr [[6, 4]]
+                        return arr
+                else:
+                    if average_normal[1] > 0:
+                        #showing from middle to sector 2
+                        return arr
+                    else:
+                        #showing from middle to sector 3
+                        arr[[1, 2]] = arr[[2, 1]]
+                        arr[[0, 3]] = arr [[3, 0]]
+                        arr[[5, 6]] = arr [[6,5]]
+                        arr[[4, 7]] = arr [[7, 4]]
+                        return arr 
+            else:
+                return np.array([0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3])
               
     return np.array([1., 1., 1., 1., 1., 1., 1., 1.])
 
@@ -254,6 +277,7 @@ def slice_image(image, n_rows, n_cols):
     contains = np.empty((n_rows, n_cols), dtype=object)
     tree_vector = np.empty((n_rows, n_cols), dtype=object)
     tree_normals = np.empty((n_rows, n_cols), dtype=object)  # New array for normals
+    building_normals = np.empty((n_rows, n_cols), dtype=object)
     building_vector = np.empty((n_rows, n_cols), dtype=object)
     direction_vectors = np.empty((n_rows, n_cols, 8), dtype=object)  # New array for 8D vectors
     
@@ -283,9 +307,9 @@ def slice_image(image, n_rows, n_cols):
                 tree_vector[i,j], tree_normals[i,j] = np.array([]), np.array([])
                 
             if building:
-                building_vector[i,j] = get_building_edges(slice)
+                building_vector[i,j], building_normals[i,j] = get_building_edges(slice)
             else:
-                building_vector[i,j] = np.array([])
+                building_vector[i,j], building_normals[i,j] = np.array([]), np.array([])
             
             # Generate 8D vector for this slice
             direction_vectors[i,j] = generate_direction_vector(contains[i,j],
@@ -293,15 +317,15 @@ def slice_image(image, n_rows, n_cols):
                                                             building_vector[i,j])
             
     
-    return slices, contains, tree_vector, tree_normals, building_vector, direction_vectors
+    return slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors
 
 def initialize(img, n, m):
     # Slice into nxm grid
-    slices, contains, tree_vector, tree_normals, building_vector, direction_vectors = slice_image(img, n, m)
+    slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = slice_image(img, n, m)
 
-    return slices, contains, tree_vector, tree_normals, building_vector, direction_vectors
+    return slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors
 
-def visualize_slices(m, n,slices, contains, tree_vector, tree_normals, building_vector, direction_vectors):
+def visualize_slices(m, n,slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors):
     # Display slices in a grid with spacing
     fig, axes = plt.subplots(m, n, figsize=(8, 8))
     plt.subplots_adjust(hspace=0.1, wspace=0.1)
@@ -352,9 +376,24 @@ def visualize_slices(m, n,slices, contains, tree_vector, tree_normals, building_
                             width=0.005,  # Thicker arrows
                             headwidth=6,  # Wider arrowheads
                             headlength=9)  # Longer arrowheads
+                
             if len(building_vector[i,j]) > 0:
                 edges = building_vector[i,j]
-                axes[i,j].plot(edges[:,0], edges[:,1], 'b.', markersize=1, alpha=0.5)
+                normals = building_normals[i,j]
+                # Plot all edge points
+                axes[i,j].plot(edges[:,0], edges[:,1], 'r.', markersize=1)
+                
+                # Sample every Nth point for normals visualization
+                N = 10  # Adjust as needed
+                sampled_edges = edges[::N]
+                sampled_normals = normals[::N]
+                # Plot normals with larger arrows
+                axes[i,j].quiver(sampled_edges[:,0], sampled_edges[:,1], 
+                            sampled_normals[:,0], sampled_normals[:,1],
+                            color='red', scale=20,  # Reduced scale = larger arrows
+                            width=0.005,  # Thicker arrows
+                            headwidth=6,  # Wider arrowheads
+                            headlength=9)  # Longer arrowheads
             axes[i,j].axis('off')
             print(f"Slice [{i},{j}] contains: {contains[i,j]}, direction vector: {direction_vectors[i,j]}")
 
@@ -414,11 +453,11 @@ img = read_image(file)
 #plt.imshow(img)
 #plt.show()
 
-n = 30
-m = 30
+n = 5
+m = 5
 
-slices, contains, tree_vector, tree_normals, building_vector, direction_vectors = initialize(img, n, m)
-visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, direction_vectors)
+slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
+visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors)
 
 index = 0
 visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_vector, direction_vectors, index)
