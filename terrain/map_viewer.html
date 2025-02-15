@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Map Viewer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+        .controls {
+            margin: 20px;
+        }
+        .view-buttons {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div>
+            <label>Coordinates:</label>
+            <input type="number" id="lat" step="0.000001" value="48.137154" /> Latitude
+            <input type="number" id="lon" step="0.000001" value="11.576124" /> Longitude
+        </div>
+        <div>
+            <label>Location:</label>
+            <input type="text" id="location" placeholder="Enter location name" />
+            <button onclick="searchLocation()">Search</button>
+        </div>
+        <div class="view-buttons">
+            <button onclick="toggleView('satellite')">Satellite View</button>
+            <button onclick="toggleView('osm')">OSM View</button>
+        </div>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        let map;
+        let currentLayer;
+        let gridLayer;
+        let marker;
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+
+        function createGrid(center) {
+            const features = [];
+            const cellSize = 2; // meters
+            const numCells = 10;
+            
+            // Convert meters to degrees (approximate)
+            const metersPerDegree = 111111;
+            const latDiff = cellSize / metersPerDegree;
+            const lonDiff = cellSize / (metersPerDegree * Math.cos(center.lat * Math.PI / 180));
+
+            for (let i = -numCells; i <= numCells; i++) {
+                for (let j = -numCells; j <= numCells; j++) {
+                    const bounds = [
+                        [center.lat + i * latDiff, center.lng + j * lonDiff],
+                        [center.lat + (i + 1) * latDiff, center.lng + (j + 1) * lonDiff]
+                    ];
+                    
+                    const cell = L.rectangle(bounds, {
+                        color: 'red',
+                        weight: 1,
+                        fillOpacity: 0.2,
+                        fillColor: 'red'
+                    });
+                    
+                    features.push(cell);
+                }
+            }
+
+            return L.featureGroup(features);
+        }
+
+        function updateGrid() {
+            const center = marker.getLatLng();
+            
+            if (gridLayer) {
+                map.removeLayer(gridLayer);
+            }
+            
+            gridLayer = createGrid(center);
+            gridLayer.addTo(map);
+            
+            // Update coordinate inputs
+            document.getElementById('lat').value = center.lat.toFixed(6);
+            document.getElementById('lon').value = center.lng.toFixed(6);
+        }
+
+        function initMap() {
+            // Initialize map
+            map = L.map('map').setView([48.137154, 11.576124], 18);
+            
+            // Add default OSM layer
+            currentLayer = osmLayer;
+            currentLayer.addTo(map);
+
+            // Add draggable marker
+            marker = L.marker([48.137154, 11.576124], {
+                draggable: true
+            }).addTo(map);
+
+            // Update grid when marker is dragged
+            marker.on('dragend', updateGrid);
+            
+            // Update marker and grid when map is clicked
+            map.on('click', function(e) {
+                marker.setLatLng(e.latlng);
+                updateGrid();
+            });
+
+            // Initial grid creation
+            updateGrid();
+        }
+
+        function toggleView(type) {
+            map.removeLayer(currentLayer);
+            currentLayer = type === 'satellite' ? satelliteLayer : osmLayer;
+            currentLayer.addTo(map);
+        }
+
+        function updateMarker(coords) {
+            marker.setLatLng(coords);
+            map.setView(coords, map.getZoom());
+            updateGrid();
+        }
+
+        async function searchLocation() {
+            const location = document.getElementById('location').value;
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+                    updateMarker(coords);
+                } else {
+                    alert('Location not found');
+                }
+            } catch (error) {
+                console.error('Error searching location:', error);
+                alert('Error searching location');
+            }
+        }
+
+        // Initialize map when page loads
+        initMap();
+
+        // Add event listeners for coordinate inputs
+        document.getElementById('lat').addEventListener('change', function() {
+            updateMarker([this.value, document.getElementById('lon').value]);
+        });
+        document.getElementById('lon').addEventListener('change', function() {
+            updateMarker([document.getElementById('lat').value, this.value]);
+        });
+    </script>
+</body>
+</html> 
