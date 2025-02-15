@@ -123,7 +123,7 @@ class Drone:
         return camera_world_corners[:, :2]
     
 
-    def detection_coverage(self, enviornment_map, pixel_size):
+    def detection_coverage(self, enviornment_map, pixel_size, certain_detection_distance, max_detection_distance):
         view_extent = self.view_coverage()
         detection_coverage = np.zeros(enviornment_map.shape, dtype=float)
         print(view_extent)
@@ -132,16 +132,11 @@ class Drone:
         poly_cols = view_extent[:, 0] / pixel_size  # x -> column
         poly_rows = view_extent[:, 1] / pixel_size  # y -> row
 
-        # print(poly_cols)
-        # print(poly_rows)
-
-        # # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
-        # rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape)
-        
-        # # For each pixel in the polygon, compute its world coordinate (center of the pixel).
-        # xs = cc * pixel_size + pixel_size / 2.0
-        # ys = rr * pixel_size + pixel_size / 2.0
-
+        # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
+        rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape)
+        xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
+        distances = np.linalg.norm(xyzcoordinates - self.position, axis=1)
+        detection_coverage[rr, cc] = np.clip(1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance), 0, 1)
 
         return detection_coverage
 
@@ -206,7 +201,7 @@ if __name__ == "__main__":
     length = np.sum(segment_lengths) 
 
     dt = 0.02
-    drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(90))
+    drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(20))
 
     # plot_drone(drone, dt)
 
@@ -214,36 +209,36 @@ if __name__ == "__main__":
     # for _ in range(100):
     #     drone.move(dt)
 
-    # corners = drone.view_coverage()
+    corners = drone.view_coverage()
     # print(corners)
     # print(drone.position)
 
 
     map_shape = (500, 500)
     environment =  np.zeros((500, 500) , dtype=float)
-    drone.detection_coverage(environment, 0.1)
+    coverage = drone.detection_coverage(environment, 0.05, 4, 10)
+    plt.imshow(coverage, origin='lower')
 
+    # coverage = drone.view_coverage(environment)
+    arrow_scale = 0.2  # Adjust arrow length as needed
+    pixel_size = 0.02
+    plt.figure(figsize=(8, 8))
 
-    # # coverage = drone.view_coverage(environment)
-    # arrow_scale = 0.2  # Adjust arrow length as needed
-    # pixel_size = 0.02
-    # plt.figure(figsize=(8, 8))
+    x, y = corners[:, 0], corners[:, 1]
+    plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
 
-    # x, y = corners[:, 0], corners[:, 1]
-    # plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
-
-    # plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    # # plt.imshow(coverage, origin='lower',
-    # #            extent=[-1, map_shape[1]*pixel_size+1, -1, map_shape[0]*pixel_size+1],
-    # #            cmap='viridis')
-    # # plt.colorbar(label='Detection Probability')
-    # plt.arrow(drone.position[0], drone.position[1],
-    #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
-    #         head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
-    # plt.title('Drone Camera Coverage Map')
-    # plt.xlabel('World X')
-    # plt.ylabel('World Y')
-    # plt.axis('equal')
-    # plt.show()
+    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    # plt.imshow(coverage, origin='lower',
+    #            extent=[-1, map_shape[1]*pixel_size+1, -1, map_shape[0]*pixel_size+1],
+    #            cmap='viridis')
+    # plt.colorbar(label='Detection Probability')
+    plt.arrow(drone.position[0], drone.position[1],
+            drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+            head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
+    plt.title('Drone Camera Coverage Map')
+    plt.xlabel('World X')
+    plt.ylabel('World Y')
+    plt.axis('equal')
+    plt.show()
 
    
