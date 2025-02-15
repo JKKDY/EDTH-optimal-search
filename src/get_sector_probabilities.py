@@ -449,20 +449,20 @@ def visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_
 
 if __name__ == "__main__":
 
-    for i in range(1, 5):
+    for i in range(4, 5):
+        i = 2
     # Read image
         img = read_image(f"img/Kursk_{i}.png")
 
-        n = 50
-        m = 50
+        n = 500
+        m = 500
 
         slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
-        np.save(f"terrain/Kursk_{i}_50x50", direction_vectors)
-        print(contains.shape, type(contains))
-        np.save(f"terrain/Kursk_{i}_50x50_roads", contains[:,:,2])
+        np.save(f"terrain/Kursk_{i}_{n}x{m}", direction_vectors)
+        np.save(f"terrain/Kursk_{i}_{n}x{m}_roads", contains[:,:,2])
 
     # visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors)
 
     # index = 0
-# visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_vector, direction_vectors, index)
+        visualze_sector_probs(slices, contains, tree_vector, tree_normals, building_vector, direction_vectors, 2)
 

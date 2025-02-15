@@ -3,12 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Polygon
 from skimage.draw import polygon
+from skimage.draw import disk
 
 epsilon = 1e-6
 
 class Drone:
     def __init__(self, path, camera_elevation=0.0, camera_azimuth=0.0, camera_fov=np.deg2rad(90),
-                 num_timesteps = 100):
+                 num_timesteps = 100, certain_detection_distance = 1500, max_detection_distance=8000):
         """
         Initialize the Drone.
 
@@ -19,10 +20,15 @@ class Drone:
         - camera_azimuth: initial azimuth angle of the camera in radians. 0.0 means the camera is looking ahead
         - camera_fov: initial horizontal field of view in radians
         """
+        assert certain_detection_distance < max_detection_distance
+
+
         self.path = path
         self.camera_elevation = camera_elevation
         self.camera_azimuth = camera_azimuth
         self.camera_fov = camera_fov 
+        self.certain_detection_distance = certain_detection_distance
+        self.max_detection_distance = max_detection_distance
         
         self.num_timesteps = num_timesteps
         distances = np.cumsum(np.concat([[0.0], np.linalg.norm(np.diff(path, axis=0), axis=1)]))
@@ -110,8 +116,15 @@ class Drone:
         camera_world_corners = camera_rays * x[:, np.newaxis] + pos
         return camera_world_corners[:, :2]
     
+    def detection_confidence(self, distances, terrain):
+        assert distances.flatten().shape == terrain.shape, f"{distances.shape} vs {terrain.shape}"
+        terrain2 = 0.5 + (terrain)*0.5
+        P = 1 - (distances.flatten()/terrain2 - self.certain_detection_distance) / (self.max_detection_distance - self.certain_detection_distance)
+        P = P
+        return np.clip(P, 0, 1)
 
-    def detection_coverage(self, timestep_idx, terrain, pixel_size, certain_detection_distance, max_detection_distance):
+
+    def detection_coverage(self, timestep_idx, terrain, pixel_size):
         """
         Calculate a detection probability for every pixel in the terrain that lies within the camera's view.
         
@@ -137,17 +150,15 @@ class Drone:
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
         rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape[:2])
 
+        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx)
+    
+    def evaluate_coverage(self, detection_coverage, cc, rr, timestep_idx):
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
 
         diffs = self.positions[timestep_idx] - xyzcoordinates
         distances = np.linalg.norm(diffs, axis=1, keepdims=True)
         
         normalized_diffs = diffs/distances 
-
-        def detection_confidence(distances, terrain):
-            P = 1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance)
-            P = P.flatten() * terrain
-            return np.clip(P, 0, 1)
 
         height_thresh = 0.7
         is_upper_quadrant = normalized_diffs[:, 0] > 0
@@ -168,19 +179,28 @@ class Drone:
         for i in range(terrain.shape[2]):
             rrr = rr[masks[i]]
             ccc = cc[masks[i]]
-            detection_coverage[rrr, ccc, i] = detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
+            detection_coverage[rrr, ccc, i] = self.detection_confidence(distances[masks[i]], terrain[rrr, ccc, i])
 
         return detection_coverage
+
     
-    def detection_cone(self, terrain, pixel_size): 
-        pass
+    def detection_sphere(self, timestep_idx, terrain, pixel_size): 
+        detection_coverage = np.zeros(terrain.shape)
+        center_x, center_y = self.positions[timestep_idx][:2].astype(int)/pixel_size
+        radius = int(self.max_detection_distance / pixel_size)
+
+        rr, cc = disk((center_x, center_y), radius, shape=terrain.shape[:2])
+        print(rr, cc)
+        
+        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx)
+
 
 
     def total_coverage(self, terrain, pixel_size):
         observation = np.zeros(terrain.shape)
         for step in range(self.num_timesteps):
             # detectable object size at max zoom range = sin(1.5deg (fov at max zoom) ) * 8km / 1080px * 20px (minimal detection size)
-            observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size, 1500, 8000))
+            observation = np.maximum(observation, self.detection_sphere(step, terrain, pixel_size))
         return observation
 
 
@@ -258,7 +278,7 @@ def plot_drone(drone, terrain, pixel_size, dt):
 if __name__ == "__main__":
     # Define a simple 2D path.
     # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
-    path = np.array([[0,0,3000], [5000, 5000,3000], [5000,7000,3000], [10000,10000,3000]])
+    path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
     
     diffs = np.diff(path, axis=0)
     segment_lengths = np.linalg.norm(diffs, axis=1)
@@ -267,8 +287,9 @@ if __name__ == "__main__":
     drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(60), camera_azimuth=np.deg2rad(0))
 
     map_shape = (500, 500, 8)
-    pixel_size = 20
-    terrain = 0.01 * np.ones(map_shape)
+    pixel_size = 26
+    terrain = np.load("terrain/Kursk_4_500x500.npy", allow_pickle=True).reshape(map_shape)
+    # terrain = np.flip(terrain)
     # terrain[:, :, 4:] *= 0.9
     # terrain[:, :, :4] *= 0.5
     # plot_drone(drone, terrain, pixel_size, dt)
@@ -276,12 +297,13 @@ if __name__ == "__main__":
 
     arrow_scale = 0.1
     detection_coverage = drone.total_coverage(terrain, pixel_size)
+    detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
     # detection_coverage = np.sum(detection_coverage, axis=2)
-    detection_coverage = np.clip(detection_coverage[:, :, 2], 0, 1)
+    detection_coverage = np.clip(detection_coverage[:, :], 0, 1)
     plt.figure(figsize=(8, 8))
 
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    plt.imshow(detection_coverage, origin='lower',
+    plt.imshow(detection_coverage, origin="lower",
             extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
             cmap='viridis')
     plt.colorbar(label='Detection Probability')
