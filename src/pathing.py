@@ -51,8 +51,10 @@ def unpack_constant_alt(x):
     return path
 
 def pack_constant_segments(path):
-    distance = np.linalg.norm(path[0,:2] - path[1,:2])
-    return np.concat([path[0,:2], [distance], path_to_angles(path[:,:2]), [path[0,2]]])
+    xy0 = path[0,:2]
+    xy1 = path[1,:2]
+    distance = np.linalg.norm(xy0 - xy1)
+    return np.concat([xy0, [distance], path_to_angles(path[:,:2]), [path[0,2]]])
 
 def unpack_constant_segments(x):
     altitude = x[-1]
