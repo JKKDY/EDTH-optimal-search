@@ -3,7 +3,7 @@ import numpy as np
 def total_path_length(path):  
     return np.sum(np.linalg.norm(np.diff(path, axis=0), axis=1))
 
-def discovery_score(p_discovery, p_prior=None):
+def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.5):
     """
     p_discovery: probability of discovering a target at this point, if it exists 
     p_prior: expected probability that a target is there
@@ -13,19 +13,22 @@ def discovery_score(p_discovery, p_prior=None):
     is quantized into.  
     """
     def activation_function(x:np.ndarray):
-        return x
+        # return x
         return 1.0 - np.exp(-x)
     
     # Expectation value for the time to find a target at this point
     if p_prior is None:
         p_prior = np.ones_like(p_discovery)
       
-    maybe_vector_valued = p_prior *  activation_function(p_discovery)
-    if np.ndim(maybe_vector_valued) == 3:
-        maybe_vector_valued = np.sum(maybe_vector_valued, axis=-1)
-    score_map = maybe_vector_valued
+    maybe_vector_valued = p_prior * activation_function(p_discovery)
     
-    return np.sum(score_map) / np.prod(p_discovery.shape)
+    if np.ndim(maybe_vector_valued) == 3:
+        maybe_vector_valued = np.clip(np.sum(maybe_vector_valued, axis=-1), 0.0, max_views_required)
+    score_map = maybe_vector_valued
+    return score_map
+
+def discovery_score(p_discovery, p_prior=None):
+    return np.sum(discovery_score_map(p_discovery, p_prior)) / np.prod(p_discovery.shape)
 
 def diffuse(array, weight = 0.2):
     return (1.0 - 4*weight - 4*weight**2) * array \
