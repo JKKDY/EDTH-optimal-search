@@ -123,17 +123,30 @@ class Drone:
         return camera_world_corners[:, :2]
     
 
-    def detection_coverage(self, enviornment_map, pixel_size, certain_detection_distance, max_detection_distance):
+    def detection_coverage(self, terrain, pixel_size, certain_detection_distance, max_detection_distance):
+        """
+        Calculate a detection probability for every pixel in the terrain that lies within the camera's view.
+        
+        For now, the detection probability p is set to be the inverse of the distance from the drone to the pixel.
+        Parameters:
+          terrain: 2D numpy array representing the terrain features.
+          pixel_size: The size (in world units) of one pixel.
+          certain_detection_distance: (Not used in the basic inverse distance model.)
+          max_detection_distance: (Not used in the basic inverse distance model.)
+        
+        Returns:
+          detection_coverage: 2D numpy array of the same shape as terrain containing the detection probabilities.
+        """
+      
         view_extent = self.view_coverage()
-        detection_coverage = np.zeros(enviornment_map.shape, dtype=float)
-        print(view_extent)
+        detection_coverage = np.zeros(terrain.shape, dtype=float)
 
         # Convert world coordinates to pixel indices.
         poly_cols = view_extent[:, 0] / pixel_size  # x -> column
         poly_rows = view_extent[:, 1] / pixel_size  # y -> row
 
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
-        rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape)
+        rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape)
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
         distances = np.linalg.norm(xyzcoordinates - self.position, axis=1)
         detection_coverage[rr, cc] = np.clip(1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance), 0, 1)
@@ -201,7 +214,7 @@ if __name__ == "__main__":
     length = np.sum(segment_lengths) 
 
     dt = 0.02
-    drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(20))
+    drone = Drone(path, velocity=2.0, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(40), camera_azimuth=np.deg2rad(0))
 
     # plot_drone(drone, dt)
 
@@ -215,23 +228,22 @@ if __name__ == "__main__":
 
 
     map_shape = (500, 500)
-    environment =  np.zeros((500, 500) , dtype=float)
-    coverage = drone.detection_coverage(environment, 0.05, 4, 10)
-    plt.imshow(coverage, origin='lower')
-
-    # coverage = drone.view_coverage(environment)
-    arrow_scale = 0.2  # Adjust arrow length as needed
     pixel_size = 0.02
+    environment =  np.zeros((500, 500) , dtype=float)
+    detection_coverage = drone.detection_coverage(environment, pixel_size, 4, 10)
+    # plt.imshow(camera_coverage, origin='lower')
+
+    arrow_scale = 0.2  # Adjust arrow length as needed
     plt.figure(figsize=(8, 8))
 
     x, y = corners[:, 0], corners[:, 1]
     plt.fill(x, y, color='cyan', edgecolor='b', alpha=0.5)
 
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    # plt.imshow(coverage, origin='lower',
-    #            extent=[-1, map_shape[1]*pixel_size+1, -1, map_shape[0]*pixel_size+1],
-    #            cmap='viridis')
-    # plt.colorbar(label='Detection Probability')
+    plt.imshow(detection_coverage, origin='lower',
+               extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+               cmap='viridis')
+    plt.colorbar(label='Detection Probability')
     plt.arrow(drone.position[0], drone.position[1],
             drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
             head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
