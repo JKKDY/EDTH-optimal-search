@@ -4,8 +4,11 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.patches import Polygon
 from skimage.draw import polygon
 
+epsilon = 1e-6
+
 class Drone:
-    def __init__(self, path, velocity=1.0, camera_elevation=0.0, camera_azimuth=0.0, camera_fov=np.deg2rad(90)):
+    def __init__(self, path, camera_elevation=0.0, camera_azimuth=0.0, camera_fov=np.deg2rad(90),
+                 num_timesteps = 100):
         """
         Initialize the Drone.
 
@@ -17,47 +20,33 @@ class Drone:
         - camera_fov: initial horizontal field of view in radians
         """
         self.path = path
-        self.velocity = velocity
         self.camera_elevation = camera_elevation
         self.camera_azimuth = camera_azimuth
         self.camera_fov = camera_fov 
         
         self.current_path_idx = 0
-        self.position = path[self.current_path_idx]
-        self.direction = path[self.current_path_idx+1] - self.position
-        self.distance_to_target = np.linalg.norm(self.direction)
-        self.direction /= self.distance_to_target
+        distances = np.cumsum(np.concat([[0.0], np.linalg.norm(np.diff(path, axis=0), axis=1)]))
+        
+        interp_points = np.linspace(0.0, distances[-1], num_timesteps)
+        x_interp = np.interp(interp_points, distances, path[:,0])
+        y_interp = np.interp(interp_points, distances, path[:,1])
+        z_interp = np.interp(interp_points, distances, path[:,2])
+        
+        self.positions = np.array([x_interp, y_interp, z_interp]).T
+        dirs = np.diff(self.positions, axis=0) 
+        self.directions = np.concat([[dirs[0]], dirs], axis=0)
+        # x_interp = np.interp(interp_points, distances, dirs[:,0])
+        # y_interp = np.interp(interp_points, distances, dirs[:,1])
+        # z_interp = np.interp(interp_points, distances, dirs[:,2])
+        # self.directions = np.array([x_interp, y_interp, z_interp]).T
+        # print(self.positions)
+        # print(self.directions)
+        self.distances = distances
 
         def __str__(self):
-            return (f"Drone(position={self.position}, "
+            return (f"Drone(position={self.positions}, "
                     f"camera_elevation={self.camera_elevation}, "
                     f"camera_azimuth={self.camera_azimuth})")
-
-    def move(self, dt):
-        """
-        Move the drone forward by a distance equal to its velocity toward the next point.
-        If the drone reaches a point, it continues to the subsequent point.
-
-        parameters:
-        - dt: duration of a single time step
-        """
-
-        if self.current_path_idx == len(self.path) - 1: return
-        
-        # If already at the target, update the index.
-        if (np.all(self.position == self.path[self.current_path_idx + 1])):
-            self.current_path_idx += 1
-            self.direction = path[self.current_path_idx+1] - self.position
-            self.distance_to_target = np.linalg.norm(self.direction)
-            self.direction /= self.distance_to_target
-
-        # update position
-        self.distance_to_target -= self.velocity * dt
-        next_point = self.path[self.current_path_idx + 1]
-        if self.distance_to_target < 0: # we overshot the target
-            self.position = self.path[self.current_path_idx + 1]
-        else:
-            self.position = next_point + self.distance_to_target * (-self.direction)
 
 
     def adjust_camera(self, elevation=None, azimuth=None, fov=None):
@@ -69,7 +58,7 @@ class Drone:
         if fov is not None: self.camera_fov = fov
 
 
-    def view_coverage(self): 
+    def view_coverage(self, timestep_idx): 
         """
         calculate current view coverage of the camera
         """
@@ -104,8 +93,12 @@ class Drone:
         cam_rotation = R_z @ R_x # first pitch then yaw
         camera_corners = (cam_rotation @ camera_corners.T)  
 
+        # clamp the z coordinate
+        camera_corners[2, camera_corners[2] > -epsilon] = -epsilon 
+
         # rotate the camera in world space
-        theta = -np.arctan2(self.direction[0], self.direction[1])
+        direc = self.directions[timestep_idx] / np.linalg.norm(self.directions[timestep_idx])
+        theta = -np.arctan2(direc[0], direc[1])
         angle_cos = np.cos(theta)
         angle_sin = np.sin(theta)
         world_rotation = np.array([
@@ -116,24 +109,24 @@ class Drone:
         camera_rays = (world_rotation @ camera_corners).T
         
         # calcualte ray intersection with ground
-        x = - self.position[2] / camera_rays[:, 2]
-        camera_world_corners = camera_rays * x[:, np.newaxis] + self.position
+        pos = self.positions[timestep_idx]
+        x = - pos[2] / camera_rays[:, 2]
+        camera_world_corners = camera_rays * x[:, np.newaxis] + pos
         return camera_world_corners[:, :2]
     
 
-    def detection_coverage(self, enviornment_map, pixel_size, certain_detection_distance, max_detection_distance):
-        view_extent = self.view_coverage()
+    def detection_coverage(self, timestep_idx, enviornment_map, pixel_size, certain_detection_distance, max_detection_distance):
+        view_extent = self.view_coverage(timestep_idx)
         detection_coverage = np.zeros(enviornment_map.shape, dtype=float)
-        print(view_extent)
 
         # Convert world coordinates to pixel indices.
         poly_cols = view_extent[:, 0] / pixel_size  # x -> column
         poly_rows = view_extent[:, 1] / pixel_size  # y -> row
 
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
-        rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape)
+        rr, cc = polygon(poly_rows, poly_cols, shape=enviornment_map.shape[:2])
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
-        distances = np.linalg.norm(xyzcoordinates - self.position, axis=1)
+        distances = np.linalg.norm(xyzcoordinates - self.positions[timestep_idx], axis=1)
         detection_coverage[rr, cc] = np.clip(1 - (distances - certain_detection_distance) / (max_detection_distance - certain_detection_distance), 0, 1)
 
         return detection_coverage
