@@ -2,6 +2,7 @@ import numpy as np
 import scipy.optimize as opt
 
 import matplotlib.pyplot as plt
+import pyswarm as pso
 
 from drone import Drone
 import scoring
