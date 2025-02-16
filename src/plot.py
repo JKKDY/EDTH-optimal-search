@@ -118,4 +118,76 @@ def plot_drone_view_cone():
     
 
 
-plot_drone_view_cone()
+
+
+# plot_drone_view_cone()
+
+
+def plot_drone_view_cone_no_terrain():
+     # Define a simple 2D path.
+    # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
+    path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
+    # path = np.array([[0,0,2000], [9000, 2000, 2000], [1000,4000,2000], [9000,6000,2000]])
+    # path = np.array([[0,0,2000], [9000, 2000, 2000]])
+
+    drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(60), camera_azimuth=np.deg2rad(0))
+
+    map_shape = (500, 500, 8)
+    pixel_size = 26
+    terrain = 0.1 * np.ones(map_shape)
+    # terrain = np.flip(terrain)
+    # terrain[:, :, 4:] *= 0.9
+    # terrain[:, :, :4] *= 0.5
+    # plot_drone(drone, terrain, pixel_size, dt)
+
+    idx = 45
+    detection_coverage = drone.detection_sphere(idx, terrain, pixel_size)
+    # detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
+    detection_coverage = np.sum(detection_coverage, axis=2)
+    # detection_coverage = np.clip(detection_coverage[:, :], 0, 1)
+
+    plt.figure(figsize=(6, 6), dpi=200)
+
+    # plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    arrow_scale = 3
+    plt.imshow(detection_coverage, origin="lower",
+            extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+            cmap='bone')
+    direction = drone.directions[idx] 
+    pos = drone.positions[idx] - direction
+    plt.arrow(pos[0], pos[1],
+            direction[0]*arrow_scale, direction[1]*arrow_scale,
+            head_width=300, head_length=300, fc='#d11919', ec='#d11919', width=30)
+    plt.colorbar(label='Detection Probability')
+    plt.title('Drone Camera Coverage Map')
+    plt.xlabel('World X [m]')
+    plt.ylabel('World Y [m]')
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.savefig("img/drone_view_cone_no_terrain.png")
+    plt.show()
+
+
+
+def plot_terrain():
+    map_shape = (500, 500, 8)
+    pixel_size = 26
+    terrain = np.load("terrain/Kursk_4_500x500.npy", allow_pickle=True).reshape(map_shape)
+    terrain = np.max(terrain, axis = 2)
+    terrain = terrain.astype(int)
+
+    print(terrain.shape)
+
+    plt.imshow(terrain, origin="lower",
+            extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+            cmap='bone')
+    
+    plt.xlabel('World X [m]')
+    plt.ylabel('World Y [m]')
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.savefig("img/map.png")
+    plt.show()
+
+
+plot_terrain()
