@@ -190,9 +190,8 @@ class Drone:
         radius = int(self.max_detection_distance / pixel_size)
 
         rr, cc = disk((center_x, center_y), radius, shape=terrain.shape[:2])
-        print(rr, cc)
         
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx)
+        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, pixel_size)
 
 
 
