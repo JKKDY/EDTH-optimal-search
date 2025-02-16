@@ -287,7 +287,7 @@ class Drone:
 
 
 
-def plot_drone(drone, terrain, pixel_size, dt):
+def plot_drone(drone, terrain, pixel_size):
     """
     Create an animation of the drone's flight with updated detection coverage.
 
@@ -410,27 +410,29 @@ if __name__ == "__main__":
     # terrain[:, :, :4] *= 0.5
     # plot_drone(drone, terrain, pixel_size, dt)
 
+    # plot_drone(drone terrain, pixel_size)
 
-    arrow_scale = 0.1
-    detection_coverage = drone.total_coverage(terrain, pixel_size)
-    # detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
-    detection_coverage = np.max(detection_coverage, axis=2)
-    # detection_coverage = np.sum(detection_coverage, axis=2)
-    detection_coverage = np.clip(detection_coverage[:, :], 0, 1)
-    plt.figure(figsize=(8, 8))
 
-    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
-    plt.imshow(detection_coverage, origin="lower",
-            extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-            cmap='bone')
-    plt.colorbar(label='Detection Probability')
-    # plt.arrow(drone.position[0], drone.position[1],
-    #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
-    #         head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
-    plt.title('Drone Camera Coverage Map')
-    plt.xlabel('World X')
-    plt.ylabel('World Y')
-    plt.axis('equal')
-    plt.show()
+    # arrow_scale = 0.1
+    # detection_coverage = drone.total_coverage(terrain, pixel_size)
+    # # detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
+    # detection_coverage = np.max(detection_coverage, axis=2)
+    # # detection_coverage = np.sum(detection_coverage, axis=2)
+    # detection_coverage = np.clip(detection_coverage[:, :], 0, 1)
+    # plt.figure(figsize=(8, 8))
+
+    # plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    # plt.imshow(detection_coverage, origin="lower",
+    #         extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+    #         cmap='bone')
+    # plt.colorbar(label='Detection Probability')
+    # # plt.arrow(drone.position[0], drone.position[1],
+    # #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,
+    # #         head_width=0.2, head_length=0.1, fc='k', ec='k', width=0.05)
+    # plt.title('Drone Camera Coverage Map')
+    # plt.xlabel('World X')
+    # plt.ylabel('World Y')
+    # plt.axis('equal')
+    # plt.show()
 
    
