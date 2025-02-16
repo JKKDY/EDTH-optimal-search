@@ -190,6 +190,7 @@ class Drone:
         radius = int(self.max_detection_distance / pixel_size)
 
         rr, cc = disk(center, radius, shape=terrain.shape[:2])
+        print(np.min(rr), np.max(rr), np.min(cc), np.max(cc))
         half_angle = 120  # in degrees
     
         # Normalize the sensor's direction vector.
@@ -221,7 +222,7 @@ class Drone:
         rr = rr[wedge_mask]
         cc = cc[wedge_mask]
         
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size) 
+        return self.evaluate_coverage(detection_coverage, rr, cc, timestep_idx, terrain, pixel_size) 
 
 
     def total_coverage(self, terrain, pixel_size):
@@ -308,7 +309,10 @@ def plot_drone(drone, terrain, pixel_size, dt):
 if __name__ == "__main__":
     # Define a simple 2D path.
     # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
-    path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
+    # path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
+    path = np.array([[0,0,2000], [9000, 2000, 2000], [1000,4000,2000], [9000,6000,2000]])
+    # path = np.array([[0,0,2000], [9000, 2000, 2000]])
+
     # path
     diffs = np.diff(path, axis=0)
     segment_lengths = np.linalg.norm(diffs, axis=1)

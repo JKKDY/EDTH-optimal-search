@@ -18,19 +18,19 @@ def benchmark(drone):
 
     prob_array  = prior / np.sum(prior)
     flat_probs = prob_array.flatten()
+    sampled_index = np.random.choice(len(flat_probs), p=flat_probs)
+    sampled_point = np.unravel_index(sampled_index, prob_array.shape)
 
     xs = []
     ys = []
 
     for _ in range(1000):
 
-        sampled_index = np.random.choice(len(flat_probs), p=flat_probs)
-        sampled_point = np.unravel_index(sampled_index, prob_array.shape)
         xs.append(sampled_point[0])
         ys.append(sampled_point[1])
 
 
-    print("Sampled point (row, col):", xs, ys)
+    print("Sampled point (row, col):", xs,)
     
     # plt.imshow(prior)
     plt.scatter(xs, ys)
