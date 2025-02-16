@@ -11,11 +11,7 @@ import pathing
 max_distance = 121760.8016296049 
 num_timesteps = 160
 pixel_size = 0.1
-<<<<<<< HEAD
-num_waypoints = 30
-=======
 num_waypoints = 26
->>>>>>> 06bdc587f79a2b1ce418630f43e6a89d95929984
 
 free_altitude = True
 compressed_representation = False 
@@ -81,11 +77,7 @@ if __name__ == "__main__":
                       num_timesteps=num_timesteps)  
         discovery = drone.total_coverage(terrain, pixel_size)
         discovered_percentage = scoring.discovery_score(discovery, prior)
-<<<<<<< HEAD
-        distance_penalty = scoring.total_path_length(path) - max_distance
-=======
         distance_penalty = scoring.total_path_length(path)
->>>>>>> 06bdc587f79a2b1ce418630f43e6a89d95929984
         out_of_bounds_penalty = np.sum((path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))**2)/num_waypoints
         #     print("out of bounds penalty", out_of_bounds_penalty)
         #     print(path)
@@ -104,15 +96,9 @@ if __name__ == "__main__":
         #     plt.show()
         return score
     x0 = assemble_x(path0, camera0)[0]
-<<<<<<< HEAD
-    res = opt.differential_evolution(f, bounds=bounds,
-                                     x0=x0, 
-                                      disp=True, maxiter=20)
-=======
     # res = opt.differential_evolution(f, bounds=bounds,
     #                                  x0=x0, #popsize=50,
     #                                  workers=4, disp=True, maxiter=20)
->>>>>>> 06bdc587f79a2b1ce418630f43e6a89d95929984
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds, )
     # x = res.x
     x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)
