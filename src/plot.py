@@ -107,7 +107,6 @@ def plot_drone_view_cone():
     plt.arrow(pos[0], pos[1],
             direction[0]*arrow_scale, direction[1]*arrow_scale,
             head_width=300, head_length=300, fc='#d11919', ec='#d11919', width=30)
-    plt.colorbar(label='Detection Probability')
     plt.title('Drone Camera Coverage Map')
     plt.xlabel('World X [m]')
     plt.ylabel('World Y [m]')
@@ -190,4 +189,4 @@ def plot_terrain():
     plt.show()
 
 
-plot_terrain()
+plot_drone_view_cone()
