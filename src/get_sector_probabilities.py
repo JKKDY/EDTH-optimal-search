@@ -453,8 +453,8 @@ if __name__ == "__main__":
     # Read image
         img = read_image(f"img/Kursk_{i}.png")
 
-        n = 50
-        m = 50
+        n = 200
+        m = 200
 
         slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
         np.save(f"terrain/Kursk_{i}_{n}x{m}", direction_vectors)

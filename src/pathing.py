@@ -81,6 +81,36 @@ def spiral_fill(polygon:np.ndarray, num_waypoints:int):
     return 
 
 
+def lawnmower_fill(start, x_dist, y_dist, num_zizags, n_points):
+    """
+    create a lawnmower path
+    Parameters:
+        start: (x,y,z) starting point of the drone
+        x_dist: extent in x direction
+        y_dist: extent in y direction 
+    """
+    curr = np.array(start)
+    path = [curr]
+    y_dist = y_dist/num_zizags/2
+    for _ in range(num_zizags):
+        path.append(curr:=curr+[x_dist, 0, 0])
+        path.append(curr:=curr+[0, y_dist, 0])
+        path.append(curr:=curr-[x_dist, 0, 0])
+        path.append(curr:=curr+[0, y_dist, 0])
+    path.append(curr:=curr+[x_dist, 0, 0])
+    path = np.array(path)
+
+    distances = np.cumsum(np.concat([[0.0], np.linalg.norm(np.diff(path, axis=0), axis=1)]))
+    
+    interp_points = np.linspace(0.0, distances[-1], n_points)
+    x_interp = np.interp(interp_points, distances, path[:,0])
+    y_interp = np.interp(interp_points, distances, path[:,1])
+    z_interp = np.interp(interp_points, distances, path[:,2])
+    
+    return np.array([x_interp, y_interp, z_interp]).T
+
+
+
 if __name__ == "__main__":
     polygon = np.array([[0,0],[0,10],[10,10],[10,0]])
     num_waypoints = 10
