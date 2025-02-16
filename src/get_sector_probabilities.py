@@ -274,7 +274,7 @@ def slice_image(image, n_rows, n_cols):
     slice_height = height // n_rows
     
     slices = np.empty((n_rows, n_cols), dtype=object)
-    contains = np.empty((n_rows, n_cols), dtype=object)
+    contains = np.zeros((n_rows, n_cols, 6), dtype=bool)
     tree_vector = np.empty((n_rows, n_cols), dtype=object)
     tree_normals = np.empty((n_rows, n_cols), dtype=object)  # New array for normals
     building_normals = np.empty((n_rows, n_cols), dtype=object)
@@ -459,6 +459,7 @@ if __name__ == "__main__":
 
         slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors = initialize(img, n, m)
         np.save(f"terrain/Kursk_{i}_{n}x{m}", direction_vectors)
+        np.save(f"terrain/Kursk_{i}_{n}x{m}_roads", contains[:,:,2])
 
     # visualize_slices(m,n, slices, contains, tree_vector, tree_normals, building_vector, building_normals, direction_vectors)
 
