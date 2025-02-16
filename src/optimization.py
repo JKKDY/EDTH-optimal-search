@@ -8,6 +8,8 @@ from drone import Drone
 import scoring
 import pathing
 
+plt.ion()
+
 
 max_distance = 121760.8016296049 
 num_timesteps = 100
@@ -62,13 +64,21 @@ if __name__ == "__main__":
     bounds_max[-1] = limits[0,2]
 
     bounds = np.vstack((bounds_min, bounds_max)).T
-    map_shape = (50, 50, 8)
+    n = 50
+    i = 4
+    map_shape = (n, n, 8)
     pixel_size = 260 # in [m]
-    terrain = np.load("terrain/Kursk_4_50x50.npy", allow_pickle=True).reshape(map_shape)
-    roads = np.load("terrain/Kursk_4_50x50_roads.npy", allow_pickle=True).reshape(map_shape[:2])
+    terrain = np.load(f"terrain/Kursk_{i}_{n}x{n}.npy", allow_pickle=True).reshape(map_shape)
     
-    prior = scoring.compute_prior(roads)
-
+    roads = np.load(f"terrain/Kursk_{i}_{n}x{n}_roads.npy", allow_pickle=True).reshape(map_shape[:2])
+    buildings = np.load(f"terrain/Kursk_{i}_{n}x{n}_buildings.npy", allow_pickle=True).reshape(map_shape[:2])
+    trees = np.load(f"terrain/Kursk_{i}_{n}x{n}_trees.npy", allow_pickle=True).reshape(map_shape[:2])
+    terrain = np.load(f"terrain/Kursk_{i}_{n}x{n}.npy", allow_pickle=True).reshape(map_shape)
+    prior = scoring.compute_prior(0.2 * roads + 0.35 * buildings + 0.45* trees)
+    im = plt.imshow(roads, extent=(0,pixel_size*terrain.shape[0], 0, pixel_size*terrain.shape[1]), origin='lower', cmap="bone")
+    line, = plt.gca().plot(path0[:,0], path0[:,1], color="k")
+    plt.colorbar()
+            
     def f(x):
         path, camera = unpack_x(x, offsets)
         drone = Drone(path, 
@@ -78,23 +88,24 @@ if __name__ == "__main__":
                       num_timesteps=num_timesteps)  
         discovery = drone.total_coverage(terrain, pixel_size)
         discovered_percentage = scoring.discovery_score(discovery, prior)
-        distance_penalty = scoring.total_path_length(path)
+        distance_penalty = scoring.total_path_length(path) - max_distance
         out_of_bounds_penalty = np.sum((path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))**2)/num_waypoints
         #     print("out of bounds penalty", out_of_bounds_penalty)
         #     print(path)
         #     print(path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))
-        score = 1e2*(1.0 - discovered_percentage) + 1e-4*distance_penalty + 1e-3*out_of_bounds_penalty
+        score = 1e2*(1.0 - discovered_percentage) + 1e-3*distance_penalty**2 + 1e-3*out_of_bounds_penalty
         # print(score)
         # print(discovered_percentage, 1e-4*distance_penalty)
         global counter
-        # counter+=1
-        # if counter % (num_waypoints+1) == 0:
-        #     print("score", discovered_percentage, distance_penalty)
-
-        #     plt.imshow(np.sum(discovery, axis=-1), extent=(0,pixel_size*discovery.shape[0], 0, pixel_size*discovery.shape[1]), origin='lower')
-        #     plt.plot(drone.positions[:,0], drone.positions[:,1])
-        #     plt.colorbar()
-        #     plt.show()
+        counter+=1
+        if counter % (num_waypoints//2) == 0:
+            im.set_data(scoring.discovery_score_map(discovery, prior))
+            line.set_ydata(drone.positions[:,1])
+            line.set_xdata(drone.positions[:,0])
+            # plt.plot(drone.positions[:,0], drone.positions[:,1], color="k")
+            plt.title(f"Intermediate optimization score: {score:.3e}\nExplored {counter*4} possible paths")
+            plt.show()
+            plt.pause(0.05)
         return score
     x0 = assemble_x(path0, camera0)[0]
     # res = opt.differential_evolution(f, bounds=bounds,
@@ -102,7 +113,7 @@ if __name__ == "__main__":
     #                                  workers=4, disp=True, maxiter=20)
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds, )
     # x = res.x
-    x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)
+    x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True) 
 
     path, camera = unpack_x(x, offsets)
     drone = Drone(path,
@@ -113,6 +124,7 @@ if __name__ == "__main__":
     discovery = drone.total_coverage(terrain, pixel_size)
     print(path)
 
+    plt.ioff()  # Turn off interactive mode
     plt.imshow(scoring.discovery_score_map(discovery, prior), extent=(0, pixel_size*discovery.shape[0], 0, pixel_size*discovery.shape[1]), origin='lower')
     plt.plot(drone.positions[:,0], drone.positions[:,1],"k--")
     plt.colorbar()
