@@ -20,7 +20,7 @@ def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.0):
         return np.clip(activation_function(p_discovery), 
                         0.0, max_views_required) * p_prior
     else:
-        return p_discovery*p_prior
+        return p_discovery * p_prior
 
 def discovery_score(p_discovery, p_prior=None):
     return np.sum(discovery_score_map(p_discovery, p_prior)) / np.prod(p_discovery.shape[:2])
