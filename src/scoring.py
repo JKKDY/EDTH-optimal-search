@@ -24,16 +24,16 @@ def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.5):
 def discovery_score(p_discovery, p_prior=None):
     return np.sum(discovery_score_map(p_discovery, p_prior)) / np.prod(p_discovery.shape[:2])
 
-def diffuse(array, weight = 0.2):
+def diffuse(array, weight=0.2):
     return (1.0 - 4*weight - 4*weight**2) * array \
-    + weight * np.roll(array, ( 1, 0)) \
-    + weight * np.roll(array, (-1, 0)) \
-    + weight * np.roll(array, ( 0, 1)) \
-    + weight * np.roll(array, ( 0,-1)) \
-    + weight**2 * np.roll(array, ( 1, 1)) \
-    + weight**2 * np.roll(array, ( 1,-1)) \
-    + weight**2 * np.roll(array, (-1, 1)) \
-    + weight**2 * np.roll(array, (-1,-1))
+        + weight   * np.roll(array, shift=1, axis=0) \
+        + weight   * np.roll(array, shift=-1, axis=0) \
+        + weight   * np.roll(array, shift=1, axis=1) \
+        + weight   * np.roll(array, shift=-1, axis=1) \
+        + weight**2 * np.roll(array, shift=(1, 1), axis=(0, 1)) \
+        + weight**2 * np.roll(array, shift=(1, -1), axis=(0, 1)) \
+        + weight**2 * np.roll(array, shift=(-1, 1), axis=(0, 1)) \
+        + weight**2 * np.roll(array, shift=(-1, -1), axis=(0, 1))
 
 def compute_prior(roads, method="diffusion"):
     """
@@ -43,7 +43,8 @@ def compute_prior(roads, method="diffusion"):
     target_probability = np.copy(roads)
     for _ in range(20):
         target_probability = diffuse(target_probability)
-    return target_probability
+    missing_weight = 1.0 - np.max(target_probability)
+    return missing_weight + target_probability
 
 
 if __name__ == "__main__":
