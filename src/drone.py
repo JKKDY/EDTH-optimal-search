@@ -116,6 +116,7 @@ class Drone:
         camera_world_corners = camera_rays * x[:, np.newaxis] + pos
         return camera_world_corners[:, :2]
     
+
     def detection_confidence(self, distances, terrain):
         assert distances.flatten().shape == terrain.shape, f"{distances.shape} vs {terrain.shape}"
         terrain2 = 0.5 + (terrain)*0.5
@@ -140,7 +141,6 @@ class Drone:
         """
         assert terrain.shape[2] == 8
 
-        detection_coverage = np.zeros(terrain.shape)
         view_extent = self.view_coverage(timestep_idx)
         
         # Convert world coordinates to pixel indices.
@@ -150,9 +150,10 @@ class Drone:
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
         rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape[:2])
 
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size)
+        return self.evaluate_coverage(cc, rr, timestep_idx, terrain, pixel_size)
     
-    def evaluate_coverage(self, detection_coverage, cc, rr, timestep_idx, terrain, pixel_size):
+    def evaluate_coverage(self, cc, rr, timestep_idx, terrain, pixel_size):
+        detection_coverage = np.zeros(terrain.shape)
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
 
         diffs = self.positions[timestep_idx] - xyzcoordinates
@@ -185,7 +186,6 @@ class Drone:
 
     
     def detection_sphere(self, timestep_idx, terrain, pixel_size): 
-        detection_coverage = np.zeros(terrain.shape)
         center = self.positions[timestep_idx][:2].astype(float) / pixel_size
         radius = int(self.max_detection_distance / pixel_size)
 
@@ -221,7 +221,7 @@ class Drone:
         rr = rr[wedge_mask]
         cc = cc[wedge_mask]
         
-        return self.evaluate_coverage(detection_coverage, rr, cc, timestep_idx, terrain, pixel_size) 
+        return self.evaluate_coverage(rr, cc, timestep_idx, terrain, pixel_size) 
 
 
     def total_coverage(self, terrain, pixel_size):
@@ -233,7 +233,57 @@ class Drone:
             
         return observation
     
-    def detect_target(self, target, terrain):
+    def detect_target(self, target, terrain, pixel_size):
+        detection_coverage = np.zeros(terrain.shape)
+
+        rr, cc = target 
+
+        coverages = []
+        for timestep_idx in range(1, self.num_timesteps):
+            coverage = self.evaluate_coverage(np.array([cc]), np.array([rr]), timestep_idx, terrain, pixel_size)
+            coverages.append(np.max(coverage[rr, cc]))
+
+        in_region = False
+        regions = []
+        region_start = 0
+        region_end = 0
+        for i, x in enumerate(coverages):
+            if in_region is False and x > 0:
+                in_region = True
+                region_start = i
+            if in_region is True and x==0:
+                in_region=False
+                region_end = i
+                regions.append((region_start, region_end))
+        
+        trials = []
+        for r in regions:
+            max_prob = 0
+            max_idx = r[0]
+            for i in range(r[0], r[1]):
+                max_prob = max(max_prob, coverages[i])
+                max_idx = i
+            trials.append((i, max_prob))
+
+        remaining_probabilities = []
+        current_probability = 0.0
+        for trial in trials:
+            remaining_prob = trial[1]*(1.0 - current_probability)
+            remaining_probabilities.append((trial[0], remaining_prob))
+            current_probability += remaining_prob
+            
+        exp_value = sum([x*y for x,y in remaining_probabilities])
+        return exp_value
+        # print(remaining_probabilities)
+        # print(exp_value)
+        # plt.plot(coverages)
+        # plt.show()
+       
+
+
+
+
+
 
 
 
@@ -314,6 +364,37 @@ if __name__ == "__main__":
     path = np.array([[0,0,2000], [9000, 2000, 2000], [1000,4000,2000], [9000,6000,2000]])
     # path = np.array([[0,0,2000], [9000, 2000, 2000]])
 
+    # path = np.array([[    0.         ,    0.          ,2000.        ],
+    #         [  758.39689188 ,12355.15657072  ,2000.        ],
+    #         [ 4297.30421253 ,12012.41540355  ,2000.        ],
+    #         [ 1360.76381815 ,11456.55349753  ,2000.        ],
+    #         [ 6755.7283386  , 8313.93550828  ,2000.        ],
+    #         [ 6170.46952714 , 7199.88101115  ,2000.        ],
+    #         [ 5738.92107382 , 5044.74214392  ,2000.        ],
+    #         [ 8662.49657626 , 4878.35260546  ,2000.        ],
+    #         [ 4321.28359208 , 2511.67533032  ,2000.        ],
+    #         [ 6886.04182764 , 3353.1616541   ,2000.        ],
+    #         [12385.89356639 , 7112.86843122  ,2000.        ],
+    #         [11065.90886356 , 5036.19977054  ,2000.        ],
+    #         [10214.17312873 , 3885.18706779  ,2000.        ],
+    #         [ 3280.99859883 ,  672.40107673  ,2000.        ],
+    #         [10222.09499517 , 2922.45958431  ,2000.        ],
+    #         [ 3688.67067126 , 6667.29793658  ,2000.        ],
+    #         [ 5348.96450971 , 7985.99971339  ,2000.        ],
+    #         [ 4791.45512612 , 7976.31462321  ,2000.        ],
+    #         [ 4586.03381588 , 3880.21916045  ,2000.        ],
+    #         [ 2035.08895372 , 4724.44871408  ,2000.        ],
+    #         [ 6193.47496205 , 3020.03695658  ,2000.        ],
+    #         [ 6625.89944532 , 6705.56955045  ,2000.        ],
+    #         [ 9141.86418116 , 8280.19290297  ,2000.        ],
+    #         [ 2061.34773299 , 7639.48760113  ,2000.        ],
+    #         [ 2094.63983458 , 1865.18095454  ,2000.        ],
+    #         [ 3289.80512123 , 6397.08940158  ,2000.        ],
+    #         [ 1663.17006065 , 2417.13863163  ,2000.        ],
+    #         [ 1750.85485309 , 2463.40191922  ,2000.        ],
+    #         [ 5322.25325236 , 2361.01461692  ,2000.        ],
+    #         [ 8429.04370041 , 1179.08907689  ,2000.        ]])
+
     # path
     diffs = np.diff(path, axis=0)
     segment_lengths = np.linalg.norm(diffs, axis=1)
@@ -341,7 +422,7 @@ if __name__ == "__main__":
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
     plt.imshow(detection_coverage, origin="lower",
             extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-            cmap='viridis')
+            cmap='bone')
     plt.colorbar(label='Detection Probability')
     # plt.arrow(drone.position[0], drone.position[1],
     #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,

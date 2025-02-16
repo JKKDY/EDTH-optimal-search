@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.optimize as opt
-from pyswarm import pso
 
 import matplotlib.pyplot as plt
 
@@ -12,7 +11,7 @@ plt.ion()
 
 
 max_distance = 121760.8016296049 
-num_timesteps = 100
+num_timesteps = 160
 pixel_size = 0.1
 num_waypoints = 26
 
