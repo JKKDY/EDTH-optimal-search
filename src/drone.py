@@ -232,6 +232,8 @@ class Drone:
             # observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size))
             
         return observation
+    
+    def detect_target(self, target, terrain):
 
 
 
