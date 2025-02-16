@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.optimize as opt
-from skopt import gp_minimize
+from pyswarm import pso
 
 import matplotlib.pyplot as plt
 
@@ -9,12 +9,15 @@ import scoring
 import pathing
 
 
-max_distance = 30
+max_distance = 60e3 * 1 
 num_timesteps = 80
 pixel_size = 0.1
 num_waypoints = 16
 
-limits = np.array([[0,0,3], [0,5,3], [5,5,3], [5,0,3]])  
+free_altitude = True
+free_camera = False
+
+limits = np.array([[0,0,3e3], [0,12e3,3e3], [12e3,12e3,3e3], [12e3,0,3e3]])    
 
 
 def assemble_x(path:np.ndarray, camera:np.ndarray):
@@ -46,16 +49,20 @@ if __name__ == "__main__":
     bounds_max[:-2] =  1.9*np.pi 
     bounds_min[:2] = 0
     bounds_max[:2] = 4
-    bounds_min[2] = 0.5
-    bounds_max[2] = 6
+    bounds_min[2] = 500
+    bounds_max[2] = np.max(limits)
     bounds_min[-2] = 0.4
     bounds_max[-2] = 5
 
     print(bounds_min)
-    
-    bounds = np.vstack((bounds_min, bounds_max)).T
 
-    terrain = np.ones((100, 100, 8))
+    bounds = np.vstack((bounds_min, bounds_max)).T
+    map_shape = (50, 50, 8)
+    pixel_size = 260 # in [m]
+    terrain = np.load("terrain/Kursk_4_50x50.npy", allow_pickle=True).reshape(map_shape)
+    roads = np.load("terrain/Kursk_4_50x50_roads.npy", allow_pickle=True).reshape(map_shape[:2])
+    prior = scoring.compute_prior(roads)
+    print(prior.shape)
 
     def f(x):
         path, camera = unpack_x(x, offsets)
@@ -66,9 +73,9 @@ if __name__ == "__main__":
                       num_timesteps=num_timesteps)  
         discovery = drone.total_coverage(terrain, pixel_size)
         discovered_percentage = scoring.discovery_score(discovery)
-        distance_penalty = scoring.total_path_length(path)-max_distance
+        distance_penalty = scoring.total_path_length(path) - max_distance
         score = (1.0 - discovered_percentage) + distance_penalty**2
-        
+    
         global counter
         # counter+=1
         # if counter % (num_waypoints+1) == 0:
@@ -80,20 +87,19 @@ if __name__ == "__main__":
         #     plt.show()
         return score
     x0 = assemble_x(path0, camera0)[0]
-    res = opt.differential_evolution(f, bounds=bounds, 
-                                     x0=x0, 
-                                     workers=4, disp=True, maxiter=10)
+    # res = opt.differential_evolution(f, bounds=bounds, 
+    #                                  x0=x0, 
+    #                                  workers=4, disp=True, maxiter=14)
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds)
-    # print([tuple(elm) for elm in bounds])
-    # res = gp_minimize(f, dimensions=[tuple(elm) for elm in bounds], x0=x0, n_calls=200, 
-    #                   n_initial_points=30, random_state=42, verbose=1, n_jobs=4)
-    
-    path, camera = unpack_x(res.x, offsets)
+    # x = res.x
+    x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)
+
+    path, camera = unpack_x(x, offsets)
     drone = Drone(path,
                 camera_elevation=np.deg2rad(60), 
                 camera_azimuth=np.deg2rad(0), 
                 camera_fov=np.deg2rad(40),
-                num_timesteps=num_timesteps)  
+                num_timesteps=num_timesteps) 
     discovery = drone.total_coverage(terrain, pixel_size)
     print(path)
 
@@ -101,4 +107,3 @@ if __name__ == "__main__":
     plt.plot(drone.positions[:,0], drone.positions[:,1])
     plt.colorbar()
     plt.show()
-    

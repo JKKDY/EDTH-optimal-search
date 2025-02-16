@@ -35,12 +35,12 @@ def diffuse(array, weight = 0.2):
     + weight**2 * np.roll(array, (-1, 1)) \
     + weight**2 * np.roll(array, (-1,-1))
 
-def compute_prior(geography, method="diffusion"):
+def compute_prior(roads, method="diffusion"):
     """
     The estimated probability distribution for targets depending on local geography.
     For now simply concentrated probability around roads. 
     """
-    target_probability = np.copy(geography.roads)
+    target_probability = np.copy(roads)
     for _ in range(20):
         target_probability = diffuse(target_probability)
     return target_probability
