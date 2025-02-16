@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.optimize as opt
-from pyswarm import pso
 
 import matplotlib.pyplot as plt
 
@@ -10,9 +9,9 @@ import pathing
 
 
 max_distance = 121760.8016296049 
-num_timesteps = 100
+num_timesteps = 160
 pixel_size = 0.1
-num_waypoints = 24
+num_waypoints = 30
 
 free_altitude = True
 compressed_representation = False 
@@ -77,7 +76,7 @@ if __name__ == "__main__":
                       camera_fov=np.deg2rad(40),
                       num_timesteps=num_timesteps)  
         discovery = drone.total_coverage(terrain, pixel_size)
-        discovered_percentage = scoring.discovery_score(discovery)
+        discovered_percentage = scoring.discovery_score(discovery, prior)
         distance_penalty = scoring.total_path_length(path) - max_distance
         out_of_bounds_penalty = np.sum((path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))**2)/num_waypoints
         #     print("out of bounds penalty", out_of_bounds_penalty)
@@ -98,7 +97,7 @@ if __name__ == "__main__":
     x0 = assemble_x(path0, camera0)[0]
     res = opt.differential_evolution(f, bounds=bounds,
                                      x0=x0, 
-                                     workers=4, disp=True, maxiter=20)
+                                      disp=True, maxiter=20)
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds, )
     x = res.x
     # x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)

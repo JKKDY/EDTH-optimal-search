@@ -116,6 +116,7 @@ class Drone:
         camera_world_corners = camera_rays * x[:, np.newaxis] + pos
         return camera_world_corners[:, :2]
     
+
     def detection_confidence(self, distances, terrain):
         assert distances.flatten().shape == terrain.shape, f"{distances.shape} vs {terrain.shape}"
         terrain2 = 0.5 + (terrain)*0.5
@@ -140,7 +141,6 @@ class Drone:
         """
         assert terrain.shape[2] == 8
 
-        detection_coverage = np.zeros(terrain.shape)
         view_extent = self.view_coverage(timestep_idx)
         
         # Convert world coordinates to pixel indices.
@@ -150,9 +150,10 @@ class Drone:
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
         rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape[:2])
 
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size)
+        return self.evaluate_coverage(cc, rr, timestep_idx, terrain, pixel_size)
     
-    def evaluate_coverage(self, detection_coverage, cc, rr, timestep_idx, terrain, pixel_size):
+    def evaluate_coverage(self, cc, rr, timestep_idx, terrain, pixel_size):
+        detection_coverage = np.zeros(terrain.shape)
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
 
         diffs = self.positions[timestep_idx] - xyzcoordinates
@@ -185,7 +186,6 @@ class Drone:
 
     
     def detection_sphere(self, timestep_idx, terrain, pixel_size): 
-        detection_coverage = np.zeros(terrain.shape)
         center = self.positions[timestep_idx][:2].astype(float) / pixel_size
         radius = int(self.max_detection_distance / pixel_size)
 
@@ -221,7 +221,7 @@ class Drone:
         rr = rr[wedge_mask]
         cc = cc[wedge_mask]
         
-        return self.evaluate_coverage(detection_coverage, rr, cc, timestep_idx, terrain, pixel_size) 
+        return self.evaluate_coverage(rr, cc, timestep_idx, terrain, pixel_size) 
 
 
     def total_coverage(self, terrain, pixel_size):
@@ -233,7 +233,57 @@ class Drone:
             
         return observation
     
-    def detect_target(self, target, terrain):
+    def detect_target(self, target, terrain, pixel_size):
+        detection_coverage = np.zeros(terrain.shape)
+
+        rr, cc = target 
+
+        coverages = []
+        for timestep_idx in range(1, self.num_timesteps):
+            coverage = self.evaluate_coverage(np.array([cc]), np.array([rr]), timestep_idx, terrain, pixel_size)
+            coverages.append(np.max(coverage[rr, cc]))
+
+        in_region = False
+        regions = []
+        region_start = 0
+        region_end = 0
+        for i, x in enumerate(coverages):
+            if in_region is False and x > 0:
+                in_region = True
+                region_start = i
+            if in_region is True and x==0:
+                in_region=False
+                region_end = i
+                regions.append((region_start, region_end))
+        
+        trials = []
+        for r in regions:
+            max_prob = 0
+            max_idx = r[0]
+            for i in range(r[0], r[1]):
+                max_prob = max(max_prob, coverages[i])
+                max_idx = i
+            trials.append((i, max_prob))
+
+        remaining_probabilities = []
+        current_probability = 0.0
+        for trial in trials:
+            remaining_prob = trial[1]*(1.0 - current_probability)
+            remaining_probabilities.append((trial[0], remaining_prob))
+            current_probability += remaining_prob
+            
+        exp_value = sum([x*y for x,y in remaining_probabilities])
+        return exp_value
+        # print(remaining_probabilities)
+        # print(exp_value)
+        # plt.plot(coverages)
+        # plt.show()
+       
+
+
+
+
+
 
 
 
@@ -341,7 +391,7 @@ if __name__ == "__main__":
     plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
     plt.imshow(detection_coverage, origin="lower",
             extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-            cmap='viridis')
+            cmap='bone')
     plt.colorbar(label='Detection Probability')
     # plt.arrow(drone.position[0], drone.position[1],
     #         drone.direction[0]*arrow_scale, drone.direction[1]*arrow_scale,

@@ -5,12 +5,20 @@ from drone import Drone
 from pathing import lawnmower_fill
 from scoring import activation_function
 
-def benchmark(drone, prior):
-   
-    prob_array  = prior / np.sum(prior)
-    flat_probs = prob_array.flatten()
-    sampled_index = np.random.choice(len(flat_probs), p=flat_probs)
-    sampled_point = np.unravel_index(sampled_index, prob_array.shape)
+def benchmark(drone, terrain, prior, pixel_size):
+    
+    n = 100
+    exp_value = 0
+    for _ in range(n):
+        prob_array  = prior / np.sum(prior)
+        flat_probs = prob_array.flatten()
+        # np.random.seed(1)
+        sampled_index = np.random.choice(len(flat_probs), p=flat_probs)
+        target = np.unravel_index(sampled_index, prob_array.shape)
+
+        exp_value += drone.detect_target(target, terrain, pixel_size)
+
+    return exp_value / n
 
 
    
@@ -55,19 +63,21 @@ if __name__ == "__main__":
 
     path = lawnmower_path((100, 100, 2000), 12500, 12500, 4)
 
-    plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
         # detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
 
     drone = Drone(path, num_timesteps=300)
+    print(benchmark(drone, terrain, prior, pixel_size))
 
-    detection_coverage = drone.total_coverage(terrain, pixel_size)
-    detection_coverage = np.max(detection_coverage, axis=2)
+    # detection_coverage = drone.total_coverage(terrain, pixel_size)
+    # detection_coverage = np.max(detection_coverage, axis=2)
 
-    plt.imshow(detection_coverage, origin="lower",
-            extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
-            cmap='viridis')
-    plt.colorbar(label='Detection Probability')
-    plt.axis('equal')
-    plt.show()
+    # plt.plot(path[:, 0], path[:, 1], 'k--', label="Path")
+    # plt.imshow(detection_coverage, origin="lower",
+    #         extent=[0, map_shape[1]*pixel_size, 0, map_shape[0]*pixel_size],
+    #         cmap='viridis')
+    # plt.scatter([target[0]*pixel_size], [target[1]*pixel_size], c="r", s=50)
+    # plt.colorbar(label='Detection Probability')
+    # plt.axis('equal')
+    # plt.show()
 
     # benchmark(None)
