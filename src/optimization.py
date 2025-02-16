@@ -12,7 +12,7 @@ import pathing
 max_distance = 121760.8016296049 
 num_timesteps = 100
 pixel_size = 0.1
-num_waypoints = 24
+num_waypoints = 26
 
 free_altitude = True
 compressed_representation = False 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
         assembledx[0][2] *= max_distance / scoring.total_path_length(path0)
         path0 = unpack_x(*assembledx)[0]
-    bounds_min[-1] = 2e3
+    bounds_min[-1] = 1.99e3
     bounds_max[-1] = limits[0,2]
 
     bounds = np.vstack((bounds_min, bounds_max)).T
@@ -77,14 +77,15 @@ if __name__ == "__main__":
                       camera_fov=np.deg2rad(40),
                       num_timesteps=num_timesteps)  
         discovery = drone.total_coverage(terrain, pixel_size)
-        discovered_percentage = scoring.discovery_score(discovery)
-        distance_penalty = scoring.total_path_length(path) - max_distance
+        discovered_percentage = scoring.discovery_score(discovery, prior)
+        distance_penalty = scoring.total_path_length(path)
         out_of_bounds_penalty = np.sum((path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))**2)/num_waypoints
         #     print("out of bounds penalty", out_of_bounds_penalty)
         #     print(path)
         #     print(path - np.clip(path, np.zeros(3), np.max(limits, axis=0)))
-        score = 1e2*(1.0 - discovered_percentage) + 1e-3*distance_penalty**2 + 1e-3*out_of_bounds_penalty
+        score = 1e2*(1.0 - discovered_percentage) + 1e-4*distance_penalty + 1e-3*out_of_bounds_penalty
         # print(score)
+        # print(discovered_percentage, 1e-4*distance_penalty)
         global counter
         # counter+=1
         # if counter % (num_waypoints+1) == 0:
@@ -96,12 +97,12 @@ if __name__ == "__main__":
         #     plt.show()
         return score
     x0 = assemble_x(path0, camera0)[0]
-    res = opt.differential_evolution(f, bounds=bounds,
-                                     x0=x0, 
-                                     workers=4, disp=True, maxiter=20)
+    # res = opt.differential_evolution(f, bounds=bounds,
+    #                                  x0=x0, #popsize=50,
+    #                                  workers=4, disp=True, maxiter=20)
     # res = opt.minimize(f, x0=assemble_x(path0, camera0)[0], bounds=bounds, )
-    x = res.x
-    # x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)
+    # x = res.x
+    x, _ = pso(f, lb=bounds_min, ub=bounds_max, maxiter=20, debug=True)
 
     path, camera = unpack_x(x, offsets)
     drone = Drone(path,
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     discovery = drone.total_coverage(terrain, pixel_size)
     print(path)
 
-    plt.imshow(scoring.discovery_score_map(discovery), extent=(0, pixel_size*discovery.shape[0], 0, pixel_size*discovery.shape[1]), origin='lower')
-    plt.plot(drone.positions[:,0], drone.positions[:,1])
+    plt.imshow(scoring.discovery_score_map(discovery, prior), extent=(0, pixel_size*discovery.shape[0], 0, pixel_size*discovery.shape[1]), origin='lower')
+    plt.plot(drone.positions[:,0], drone.positions[:,1],"k--")
     plt.colorbar()
     plt.show()
