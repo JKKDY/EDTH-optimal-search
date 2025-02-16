@@ -7,7 +7,7 @@ def activation_function(x:np.ndarray):
         return 1.0 - np.prod(1.0 - x, axis=-1)
         return 1.0 - np.exp(-x)
     
-def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.5):
+def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.0):
     """
     p_discovery: probability of discovering a target at this point, if it exists 
     
@@ -41,7 +41,7 @@ def compute_prior(roads, method="diffusion"):
     For now simply concentrated probability around roads. 
     """
     target_probability = np.copy(roads)
-    for _ in range(20):
+    for _ in range(1):
         target_probability = diffuse(target_probability)
     missing_weight = 1.0 - np.max(target_probability)
     return missing_weight + target_probability

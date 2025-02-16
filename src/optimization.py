@@ -61,6 +61,7 @@ if __name__ == "__main__":
     pixel_size = 260 # in [m]
     terrain = np.load("terrain/Kursk_4_50x50.npy", allow_pickle=True).reshape(map_shape)
     roads = np.load("terrain/Kursk_4_50x50_roads.npy", allow_pickle=True).reshape(map_shape[:2])
+    
     prior = scoring.compute_prior(roads)
 
     plt.imshow(prior, extent=(0, pixel_size*prior.shape[0], 0, pixel_size*prior.shape[1]), origin='lower') 
