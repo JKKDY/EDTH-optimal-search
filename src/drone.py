@@ -150,9 +150,9 @@ class Drone:
         # Use skimage.draw.polygon to get indices of all pixels inside the polygon.
         rr, cc = polygon(poly_rows, poly_cols, shape=terrain.shape[:2])
 
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, pixel_size)
+        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size)
     
-    def evaluate_coverage(self, detection_coverage, cc, rr, timestep_idx, pixel_size):
+    def evaluate_coverage(self, detection_coverage, cc, rr, timestep_idx, terrain, pixel_size):
         xyzcoordinates = (np.array([cc, rr, np.zeros_like(rr)]).T * pixel_size)
 
         diffs = self.positions[timestep_idx] - xyzcoordinates
@@ -191,7 +191,7 @@ class Drone:
 
         rr, cc = disk((center_x, center_y), radius, shape=terrain.shape[:2])
         
-        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, pixel_size)
+        return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size) 
 
 
 
