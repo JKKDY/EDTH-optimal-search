@@ -41,7 +41,7 @@ def compute_prior(roads, method="diffusion"):
     For now simply concentrated probability around roads. 
     """
     target_probability = np.copy(roads)
-    for _ in range(20):
+    for _ in range(1):
         target_probability = diffuse(target_probability)
     missing_weight = 1.0 - np.max(target_probability)
     return missing_weight + target_probability

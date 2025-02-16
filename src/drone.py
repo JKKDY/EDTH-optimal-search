@@ -309,7 +309,7 @@ if __name__ == "__main__":
     # Define a simple 2D path.
     # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
     path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
-    
+    # path
     diffs = np.diff(path, axis=0)
     segment_lengths = np.linalg.norm(diffs, axis=1)
     length = np.sum(segment_lengths) 
@@ -327,7 +327,8 @@ if __name__ == "__main__":
 
     arrow_scale = 0.1
     detection_coverage = drone.total_coverage(terrain, pixel_size)
-    detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
+    # detection_coverage = 1 - (np.prod(1-detection_coverage, axis=2))
+    detection_coverage = np.max(detection_coverage, axis=2)
     # detection_coverage = np.sum(detection_coverage, axis=2)
     detection_coverage = np.clip(detection_coverage[:, :], 0, 1)
     plt.figure(figsize=(8, 8))
