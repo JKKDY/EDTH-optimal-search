@@ -186,13 +186,46 @@ class Drone:
     
     def detection_sphere(self, timestep_idx, terrain, pixel_size): 
         detection_coverage = np.zeros(terrain.shape)
-        center_x, center_y = self.positions[timestep_idx][:2].astype(int)/pixel_size
+        center = self.positions[timestep_idx][:2].astype(float) / pixel_size
         radius = int(self.max_detection_distance / pixel_size)
 
-        rr, cc = disk((center_x, center_y), radius, shape=terrain.shape[:2])
+        rr, cc = disk(center, radius, shape=terrain.shape[:2])
+        half_angle = 120  # in degrees
+    
+        # Normalize the sensor's direction vector.
+        sensor_dir = self.directions[timestep_idx][:2].astype(float)
+        norm = np.linalg.norm(sensor_dir)
+        if norm == 0:
+            # If the direction is zero, then default to all points.
+            wedge_mask = np.ones_like(rr, dtype=bool)
+        else:
+            unit_dir = sensor_dir / norm
+            
+            # Note: skimage.draw.disk returns rr (rows) and cc (columns).
+            # In image coordinates, (row, col) corresponds to (y, x).
+            # Here we assume that self.direction is given as (x, y).
+            # Compute the vector from the center to each point:
+            dx = cc - center[1]  # x difference
+            dy = rr - center[0]  # y difference
+            
+            # Compute the norm of these vectors.
+            vec_norm = np.sqrt(dx**2 + dy**2)
+            # Avoid division by zero at the center.
+            vec_norm[vec_norm == 0] = 1
+            
+            # Compute the cosine of the angle between each vector and sensor direction.
+            # Dot product: (dx, dy) · (unit_dir_x, unit_dir_y)
+            cos_angle = (dx * unit_dir[0] + dy * unit_dir[1]) / vec_norm
+            
+            # Points are within the wedge if the angle between them and sensor_dir is <= half_angle.
+            # That is: angle = arccos(cos_angle) <= half_angle, or cos_angle >= cos(half_angle)
+            wedge_mask = cos_angle >= np.cos(np.deg2rad(half_angle))
+        
+        # Apply the mask to keep only points within the 120° wedge.
+        rr = rr[wedge_mask]
+        cc = cc[wedge_mask]
         
         return self.evaluate_coverage(detection_coverage, cc, rr, timestep_idx, terrain, pixel_size) 
-
 
 
     def total_coverage(self, terrain, pixel_size):
