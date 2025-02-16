@@ -229,8 +229,8 @@ class Drone:
         observation = np.zeros(terrain.shape)
         for step in range(self.num_timesteps):
             # detectable object size at max zoom range = sin(1.5deg (fov at max zoom) ) * 8km / 1080px * 20px (minimal detection size)
-            observation = np.maximum(observation, self.detection_sphere(step, terrain, pixel_size))
-            # observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size))
+            # observation = np.maximum(observation, self.detection_sphere(step, terrain, pixel_size))
+            observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size))
             
         return observation
 

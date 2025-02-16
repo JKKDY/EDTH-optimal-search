@@ -66,7 +66,10 @@ if __name__ == "__main__":
 
     plt.imshow(prior, extent=(0, pixel_size*prior.shape[0], 0, pixel_size*prior.shape[1]), origin='lower') 
     plt.colorbar()
+    plt.subplot(122)
     plt.title("Prior probability of targets")
+    plt.subplot(121)
+    plt.title("Drone's view coverage")
     plt.show()
 
     def f(x):
