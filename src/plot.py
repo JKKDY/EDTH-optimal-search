@@ -133,7 +133,7 @@ def plot_drone_view_cone_no_terrain():
 
     map_shape = (500, 500, 8)
     pixel_size = 26
-    terrain = 0.1 * np.ones(map_shape)
+    terrain =  np.ones(map_shape)
     # terrain = np.flip(terrain)
     # terrain[:, :, 4:] *= 0.9
     # terrain[:, :, :4] *= 0.5
@@ -165,6 +165,8 @@ def plot_drone_view_cone_no_terrain():
     plt.savefig("img/drone_view_cone_no_terrain.png")
     plt.show()
 
+plot_drone_view_cone_no_terrain()
+
 
 
 def plot_terrain():
@@ -188,4 +190,3 @@ def plot_terrain():
     plt.show()
 
 
-plot_drone_view_cone_no_terrain()
