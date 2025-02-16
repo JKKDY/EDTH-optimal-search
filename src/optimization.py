@@ -62,7 +62,11 @@ if __name__ == "__main__":
     terrain = np.load("terrain/Kursk_4_50x50.npy", allow_pickle=True).reshape(map_shape)
     roads = np.load("terrain/Kursk_4_50x50_roads.npy", allow_pickle=True).reshape(map_shape[:2])
     prior = scoring.compute_prior(roads)
-    print(prior.shape)
+
+    plt.imshow(prior, extent=(0, pixel_size*prior.shape[0], 0, pixel_size*prior.shape[1]), origin='lower') 
+    plt.colorbar()
+    plt.title("Prior probability of targets")
+    plt.show()
 
     def f(x):
         path, camera = unpack_x(x, offsets)
