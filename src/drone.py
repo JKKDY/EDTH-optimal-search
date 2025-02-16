@@ -228,8 +228,8 @@ class Drone:
         observation = np.zeros(terrain.shape)
         for step in range(self.num_timesteps):
             # detectable object size at max zoom range = sin(1.5deg (fov at max zoom) ) * 8km / 1080px * 20px (minimal detection size)
-            observation = np.maximum(observation, self.detection_sphere(step, terrain, pixel_size))
-            # observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size))
+            # observation = np.maximum(observation, self.detection_sphere(step, terrain, pixel_size))
+            observation = np.maximum(observation, self.detection_coverage(step, terrain, pixel_size))
             
         return observation
 
@@ -309,11 +309,11 @@ if __name__ == "__main__":
     # Define a simple 2D path.
     # path = np.array([[0,0,10], [0, 5,10], [5,7,10], [10,10,10]])
     path = np.array([[0,0,2000], [5000, 5000, 2000], [5000,7000,2000], [10000,10000,2000]])
-    # path
-    diffs = np.diff(path, axis=0)
-    segment_lengths = np.linalg.norm(diffs, axis=1)
-    length = np.sum(segment_lengths) 
-
+    print(path)
+    import pathing
+    path = pathing.zigzag_fill(np.array([[0,0,2000], [2000, 8000, 2000], [5000,9000,2000], [8000,0,2000]]), num_waypoints=4)
+    print(path)
+    
     drone = Drone(path, camera_elevation=np.deg2rad(45), camera_fov=np.deg2rad(60), camera_azimuth=np.deg2rad(0))
 
     map_shape = (500, 500, 8)

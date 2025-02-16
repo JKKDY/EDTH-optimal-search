@@ -4,6 +4,7 @@ def total_path_length(path):
     return np.sum(np.linalg.norm(np.diff(path, axis=0), axis=1))
 
 def activation_function(x:np.ndarray):
+        # return np.max(x, axis=-1)
         return 1.0 - np.prod(1.0 - x, axis=-1)
         return 1.0 - np.exp(-x)
     
@@ -17,7 +18,7 @@ def discovery_score_map(p_discovery, p_prior=None, max_views_required = 1.0):
     """
     if np.ndim(p_discovery) == 3:
         return np.clip(activation_function(p_discovery), 
-                                      0.0, max_views_required)
+                        0.0, max_views_required)
     else:
         return p_discovery
 
