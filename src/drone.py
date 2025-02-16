@@ -190,7 +190,6 @@ class Drone:
         radius = int(self.max_detection_distance / pixel_size)
 
         rr, cc = disk(center, radius, shape=terrain.shape[:2])
-        print(np.min(rr), np.max(rr), np.min(cc), np.max(cc))
         half_angle = 120  # in degrees
     
         # Normalize the sensor's direction vector.
