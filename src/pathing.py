@@ -88,6 +88,8 @@ def lawnmower_fill(start, x_dist, y_dist, num_zizags, n_points):
         start: (x,y,z) starting point of the drone
         x_dist: extent in x direction
         y_dist: extent in y direction 
+        num_zig_zags: how often the drone should change direction
+        n_points: number of path points returned
     """
     curr = np.array(start)
     path = [curr]
