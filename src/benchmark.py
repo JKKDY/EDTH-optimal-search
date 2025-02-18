@@ -65,7 +65,7 @@ def lawnmower_path(start, x_dist, y_dist, num_zizags):
     return path
     
 
-def benchmark_path(path:np.array, plot=True):
+def benchmark_path(path:np.array, plot=True, img_name=None):
     n = 200
     num_benchmarks = 1000
     pixel_size = 13000/n # in [m]
@@ -89,7 +89,7 @@ def benchmark_path(path:np.array, plot=True):
                 cmap='bone')
         plt.colorbar(label='Detection Probability')
         plt.axis('equal')
-        plt.savefig("lawnmower.png")
+        if img_name is not None: plt.savefig(img_name)
         plt.show()
 
 
@@ -136,4 +136,4 @@ if __name__ == "__main__":
     benchmark_path(lawnmower)
    
     print("optimized_path Path distance:", path_distance(optimized_path))
-    benchmark_path(optimized_path)
+    # benchmark_path(optimized_path)
