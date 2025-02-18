@@ -111,7 +111,12 @@ def lawnmower_fill(start, x_dist, y_dist, num_zizags, n_points):
     
     return np.array([x_interp, y_interp, z_interp]).T
 
+def circular_path(center:np.ndarray, radius:int, num_points:int, altitude:int=2000):
+    theta = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
+    x = center[0] + radius * np.cos(theta)
+    y = center[1] + radius * np.sin(theta)
 
+    return np.column_stack((x, y, 1000*np.ones(num_points)))
 
 if __name__ == "__main__":
     polygon = np.array([[0,0],[0,10],[10,10],[10,0]])

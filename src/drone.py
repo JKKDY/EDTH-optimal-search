@@ -53,13 +53,13 @@ class Drone:
         return self.positions[step]
 
 
-    def adjust_camera(self, elevation=None, azimuth=None, fov=None):
+    def adjust_camera(self, camera_elevation=None, camera_fov=None, camera_azimuth=None):
         """
         Adjust the camera's elevation and azimuth angles.
         """
-        if elevation is not None: self.camera_elevation = elevation
-        if azimuth is not None: self.camera_azimuth = azimuth
-        if fov is not None: self.camera_fov = fov
+        if camera_elevation is not None: self.camera_elevation = camera_elevation
+        if camera_azimuth is not None: self.camera_azimuth = camera_azimuth
+        if camera_fov is not None: self.camera_fov = camera_fov
 
 
     def camera_view(self, timestep_idx): 
@@ -74,7 +74,7 @@ class Drone:
         """
         # Convert FOV from degrees to radians and compute half-angle.
         fov_vertical = self.camera_fov
-        fov_horizontal = self.camera_fov 
+        fov_horizontal = self.camera_fov # can adjust fov ratio later
 
         tan_half_horizontal = np.tan(fov_horizontal / 2)
         tan_half_vertical = np.tan(fov_vertical / 2)
