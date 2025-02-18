@@ -49,13 +49,14 @@ Here are some example animations and plots.
     <span>Left: simulation of the drones overall detection cone. Right: Cumulative detection probability over the drones flight path
 </p>
 
-<p align="center">
+<!-- <p align="center">
     <img src="./img/animate_drone_camera_coverage.gif" width="45%" />
     <img src="./img/animate_drone_camera_coverage_cummulative.gif" width="45%" />
     <br>
     <span>Left: simulation of the drones current camera view. Right: Cumulative detection probability of the drones flight path and camera movement
 </span>
-</p>
+</p> -->
+
 
 
 
